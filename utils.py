@@ -19,7 +19,7 @@ def get_train_test_split(metadata, morphograph):
     
     # merging the two files
     positives = pd.concat([metadata.merge(positives, left_on='uid', right_on='img1', how='inner'),
-                          metadata.merge(positives, left_on='uid', right_on='img2', how='inner')], axis=0) .reset_index()
+                           metadata.merge(positives, left_on='uid', right_on='img2', how='inner')], axis=0).reset_index()
     
     # adding set specification to df
     mapper = {it:number for number, nodes in enumerate(components) for it in nodes}
@@ -30,16 +30,16 @@ def get_train_test_split(metadata, morphograph):
 
 def preprocess_image(img_name):
     img = Image.open(img_name)
-    tfms = transforms.Compose([transforms.Resize(224), transforms.ToTensor(),
+    tfms = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor(),
            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),])
     return tfms(img).unsqueeze(0)
 
-def get_embedding(img_name, set_name, model):
-    embedding = model(preprocess_image(set_name+'/'+img_name+'.jpg')).detach().numpy().T
+def get_embedding(img, model):
+    embedding = model(img).detach().numpy().T
     norm = np.linalg.norm(embedding)
     return embedding / norm
 
-def make_tree(metadata, embeds=False, set_name = 'train'):
+def make_tree(metadata, embeds=False, set_name='train'):
     metadata = metadata[metadata['set'] == set_name]
     metadata = metadata.groupby('uid').first().reset_index()
     if embeds:
@@ -53,7 +53,6 @@ def make_tree(metadata, embeds=False, set_name = 'train'):
 
 def find_most_similar(row, metadata, kdt, embeds=False):
     B = list(metadata['uid'])
-    
     if embeds:
         cv = kdt.kneighbors(np.array(embeds[row['uid'].values[0]]).reshape(1,-1))[1][0][1]
     else:
@@ -64,7 +63,7 @@ def show_most_similar(row, metadata, kdt, embeds=False, set_name='train'):
     
     metadata = metadata[metadata['set'] == set_name]
     metadata = metadata.groupby('uid').first().reset_index()
-    cv = find_most_similar(row, kdt, embeds)
+    cv = find_most_similar(row, metadata, kdt, embeds)
     
     print('reference image', row['uid'].values[0])
     display(Image2(set_name+'/' + row['uid'].values[0] + '.jpg',  width=400, height=400))
