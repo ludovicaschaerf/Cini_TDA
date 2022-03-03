@@ -1,3 +1,4 @@
+from socket import AF_NETROM
 import torch
 from torch import nn
 from torchvision import models
@@ -38,3 +39,9 @@ class ReplicaNet(torch.nn.Module):
         for s in size:
             num_features *= s
         return num_features
+
+
+    def predict(self,a):
+        a_emb = self.efficientnet(a)
+        a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
+        return a_norm

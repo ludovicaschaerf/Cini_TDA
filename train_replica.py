@@ -3,8 +3,12 @@ from torch import nn
 import time
 import copy
 from torch.optim import lr_scheduler
+from tqdm import tqdm
+from utils import get_embedding
+import pickle
+import pandas as pd
 
-def train_replica(model, loaders, dataset_sizes, num_epochs=20):
+def train_replica(model, loaders, dataset_sizes, dt, num_epochs=20):
     
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = 'cpu'
@@ -32,7 +36,7 @@ def train_replica(model, loaders, dataset_sizes, num_epochs=20):
             running_loss = 0.0
             
             # Iterate over data.
-            for a, b, c in loaders[phase]:
+            for a, b, c in tqdm(loaders[phase]):
                 a = a.squeeze(1).to(device)
                 b = b.squeeze(1).to(device)
                 c = c.squeeze(1).to(device)
@@ -55,7 +59,7 @@ def train_replica(model, loaders, dataset_sizes, num_epochs=20):
 
                 # statistics
                 running_loss += loss.item() * a.size(0)
-                
+
             if phase == 'train':
                 scheduler.step()
 
@@ -69,6 +73,16 @@ def train_replica(model, loaders, dataset_sizes, num_epochs=20):
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
 
+            if epoch % 5 == 4:
+                dict2emb = {}
+                for i in tqdm(range(dt.__len__())):
+                    uid, A = dt.__get_simgle_item__(i)
+                    dict2emb[uid] = model.predict(A)
+
+
+                with open('dict2emb', 'wb') as outfile:
+                    pickle.dump(dict2emb, outfile)
+
 
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
@@ -77,5 +91,5 @@ def train_replica(model, loaders, dataset_sizes, num_epochs=20):
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    
+    torch.save(model.state_dict(), 'model_weights')
     return model

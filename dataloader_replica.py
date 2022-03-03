@@ -56,3 +56,11 @@ class ReplicaDataset(Dataset):
         sample = [A, B, C]
 
         return sample
+
+    def __get_simgle_item__(self, idx):
+        img_1 = os.path.join(self.root_dir,
+                             self.data.loc[idx, 'uid'] +
+                             '.jpg')
+        uid = self.data.loc[idx, 'uid']
+        A = preprocess_image(img_1)
+        return uid, A
