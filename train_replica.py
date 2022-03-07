@@ -6,18 +6,19 @@ from torch.optim import lr_scheduler
 from tqdm import tqdm
 import pickle
 
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = "cpu"
 
-def train_replica(model, loaders, dataset_sizes, dt, num_epochs=20):
 
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    #device = "cpu"
+def train_replica(model, loaders, dataset_sizes, dts, num_epochs=20):
 
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
 
     triplet_loss = nn.TripletMarginWithDistanceLoss(
-        distance_function=torch.cdist, margin=1.5
+        distance_function=torch.cdist, margin=1.1
     )
+    
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-6)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
@@ -28,7 +29,7 @@ def train_replica(model, loaders, dataset_sizes, dt, num_epochs=20):
         print("-" * 10)
 
         # Each epoch has a training and validation phase
-        for phase in ["train"]:  # , 'val'
+        for phase in ["train", "test"]:  # , 'val'
             if phase == "train":
                 model.train()  # Set model to training mode
             else:
@@ -70,15 +71,16 @@ def train_replica(model, loaders, dataset_sizes, dt, num_epochs=20):
 
             # deep copy the model
             if (
-                phase == "train" and epoch_loss < best_loss
+                phase == "test" and epoch_loss < best_loss
             ):  # needs to be changed to val
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
 
-            if epoch % 5 == 4:
+            #if epoch % 5 == 4:
+            if epoch % 2 == 1:
                 dict2emb = {}
-                for i in tqdm(range(dt.__len__())):
-                    uid, A = dt.__get_simgle_item__(i)
+                for i in tqdm(range(dts[phase].__len__())):
+                    uid, A = dts[phase].__get_simgle_item__(i)
                     dict2emb[uid] = model.predict(A)
 
                 with open("dict2emb", "wb") as outfile:
@@ -94,5 +96,5 @@ def train_replica(model, loaders, dataset_sizes, dt, num_epochs=20):
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    torch.save(model.state_dict(), "model_weights")
+    
     return model

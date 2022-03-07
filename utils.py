@@ -5,7 +5,7 @@ import pickle
 import pandas as pd
 import networkx as nx
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import NearestNeighbors, BallTree
 
 
 def get_train_test_split(metadata, morphograph):
@@ -60,55 +60,48 @@ def get_embedding(img, model):
     return embedding / norm
 
 
-def make_tree(metadata, embeds_folder, set_name="train"):
-    metadata = metadata[metadata["set"] == set_name]
+def make_tree(metadata, embeds):
     metadata = metadata.groupby("uid").first().reset_index()
-    A = []
-    for it in metadata['uid']:
-        with open(embeds_folder + it, 'rb') as infile:
-            elt = pickle.load(infile)
-            A.append(list(elt[:, 0]))
-
-    kdt = NearestNeighbors(n_neighbors=2, metric="euclidean").fit(A)
+    A = [embeds[it].toarray()[0] for it in metadata['uid']]
+    #kdt = NearestNeighbors(n_neighbors=n, metric="euclidean").fit(A)
+    kdt = BallTree(A, metric="euclidean")
 
     return kdt
 
 
-def find_most_similar(row, metadata, kdt, embeds_folder):
+def find_most_similar(row, metadata, kdt, embeds, n=1):
     B = list(metadata["uid"])
-
-    with open(embeds_folder + row["uid"].values[0], 'rb') as infile:
-        img = np.array(pickle.load(infile)).reshape(1, -1)
-    
-    cv = kdt.kneighbors(img)[1][0][1]
-    return B[cv]
+    img = embeds[row["uid"].values[0]].toarray()[0].reshape(1, -1)
+    #cv = kdt.kneighbors(img)[1][0][:n]
+    cv = kdt.query(img, k=n)[1][0]
+    return [B[c] for c in cv]
 
 
-def show_most_similar(row, metadata, kdt, embeds_folder, set_name="train"):
+def show_most_similar(row, metadata, kdt, embeds, n=1):
 
-    metadata = metadata[metadata["set"] == set_name]
     metadata = metadata.groupby("uid").first().reset_index()
-    cv = find_most_similar(row, metadata, kdt, embeds_folder)
+    cv = find_most_similar(row, metadata, kdt, embeds, n=n)
 
     print("reference image", row["uid"].values[0])
     display(
-        Image2('/scratch/students/schaerf/' + set_name + "/" + row["uid"].values[0] + ".jpg", width=400, height=400)
+        Image2('/scratch/students/schaerf/' + row["set"].values[0] + "/" + row["uid"].values[0] + ".jpg", width=400, height=400)
     )
 
     if row["uid"].values[0] == row["img1"].values[0]:
         print("actual most similar image", row["img2"].values[0])
         display(
             Image2(
-                '/scratch/students/schaerf/' + set_name + "/" + row["img2"].values[0] + ".jpg", width=400, height=400
+                '/scratch/students/schaerf/' + row["set"].values[0] + "/" + row["img2"].values[0] + ".jpg", width=400, height=400
             )
         )
     else:
         print("actual most similar image", row["img1"].values[0])
         display(
             Image2(
-                '/scratch/students/schaerf/' + set_name + "/" + row["img1"].values[0] + ".jpg", width=400, height=400
+                '/scratch/students/schaerf/' + row["set"].values[0] + "/" + row["img1"].values[0] + ".jpg", width=400, height=400
             )
         )
 
-    print("most similar image according to model", cv)
-    display(Image2('/scratch/students/schaerf/' + set_name + "/" + cv + ".jpg", width=400, height=400))
+    for i in range(len(cv)):
+        print(i+1, "th most similar image according to model", cv[i])
+        display(Image2('/scratch/students/schaerf/subset/' + cv[i] + ".jpg", width=400, height=400))

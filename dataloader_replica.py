@@ -42,7 +42,7 @@ class ReplicaDataset(Dataset):
             list(self.data.loc[idx, "img2"]) + list(self.data.loc[idx, "img1"])
         )
 
-        img_2 = os.path.join(self.root_dir, list(list_b)[0] + ".jpg")
+        img_2 = os.path.join(self.root_dir, list(list_b.remove(self.data.loc[idx, "uid"]))[0] + ".jpg")
 
         with open(self.embeds_folder, "rb") as infile:
             embeds = pickle.load(infile)
@@ -50,8 +50,8 @@ class ReplicaDataset(Dataset):
         tree = make_tree(
             self.data[~self.data.index.isin(list(list_b))].reset_index(),
             embeds=embeds,
-            set_name=list(self.data["set"])[0],
-        )  ### TODO check that this is not in list_b: let's see if it works
+        )  
+        
         c = find_most_similar(
             self.data[self.data.index == idx],
             self.data[~self.data.index.isin(list(list_b))].reset_index(),
@@ -75,3 +75,30 @@ class ReplicaDataset(Dataset):
         A = preprocess_image(img_1)
 
         return uid, A
+
+    def __get_set_b__(self, idx):
+        list_b = set(
+            list(self.data.loc[idx, "img2"]) + list(self.data.loc[idx, "img1"])
+        )
+        return list_b
+
+    def __get_set_c__(self, idx):
+
+        with open(self.embeds_folder, "rb") as infile:
+            embeds = pickle.load(infile)
+
+        tree = make_tree(
+            self.data[self.data.index == idx].reset_index(),
+            embeds=embeds,
+            n=4
+        )  
+        
+        list_c = find_most_similar(
+            self.data[self.data.index == idx],
+            self.data[self.data.index != idx].reset_index(),
+            tree,
+            embeds=embeds,
+            n=4
+        )
+
+        return set(list_c)
