@@ -50,5 +50,5 @@ class ReplicaNet(torch.nn.Module):
 
     def evaluate(self, set_b, set_c):
         intersection = set_b.intersection(set_c)
-        return len(list(intersection))
+        return len(list(intersection)) / len(list(set_c))
 

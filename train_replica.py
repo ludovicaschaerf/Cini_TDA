@@ -8,7 +8,7 @@ import pickle
 
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 device = "cpu"
-
+data_dir = '/scratch/students/schaerf/'
 
 def train_replica(model, loaders, dataset_sizes, dts, num_epochs=20):
 
@@ -23,8 +23,14 @@ def train_replica(model, loaders, dataset_sizes, dts, num_epochs=20):
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
     best_loss = 100000000
+    train_accuracy = 0
+    test_accuracy = 0
 
     for epoch in range(num_epochs):
+        with open(data_dir + "dict2emb.pkl", "rb") as infile:
+            dict2emb = pickle.load(infile)
+
+                
         print("Epoch {}/{}".format(epoch, num_epochs - 1))
         print("-" * 10)
 
@@ -38,7 +44,7 @@ def train_replica(model, loaders, dataset_sizes, dts, num_epochs=20):
             running_loss = 0.0
 
             # Iterate over data.
-            for a, b, c in tqdm(loaders[phase]):
+            for i, [a, b, c] in tqdm(enumerate(loaders[phase])):
                 a = a.squeeze(1).to(device)
                 b = b.squeeze(1).to(device)
                 c = c.squeeze(1).to(device)
@@ -61,13 +67,31 @@ def train_replica(model, loaders, dataset_sizes, dts, num_epochs=20):
 
                 # statistics
                 running_loss += loss.item() * a.size(0)
+                if phase == "train":
+                    train_accuracy += model.evaluate(dts[phase].__get_set_b__(i), dts[phase].__get_set_c__(i))
+                else:
+                    test_accuracy += model.evaluate(dts[phase].__get_set_b__(i), dts[phase].__get_set_c__(i))
+            
+                uid, A = dts[phase].__get_simgle_item__(i)
+                dict2emb[uid] = model.predict(A)
+
 
             if phase == "train":
                 scheduler.step()
 
             epoch_loss = running_loss / dataset_sizes[phase]
+            if phase == "train":
+                epoch_train_acc = train_accuracy / dataset_sizes[phase]
+                print("{} Loss: {:.4f} Accuracy @ 4 {:.4f}".format(phase, epoch_loss, epoch_train_acc))
 
-            print("{} Loss: {:.4f}".format(phase, epoch_loss))
+            else:
+                epoch_test_acc = train_accuracy / dataset_sizes[phase]
+                print("{} Loss: {:.4f} Accuracy @ 4 {:.4f}".format(phase, epoch_loss, epoch_test_acc))
+            
+            
+
+            with open(data_dir + "dict2emb.pkl", "wb") as outfile: ## not updating images in subset
+                pickle.dump(dict2emb, outfile)
 
             # deep copy the model
             if (
@@ -76,15 +100,6 @@ def train_replica(model, loaders, dataset_sizes, dts, num_epochs=20):
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
 
-            #if epoch % 5 == 4:
-            if epoch % 2 == 1:
-                dict2emb = {}
-                for i in tqdm(range(dts[phase].__len__())):
-                    uid, A = dts[phase].__get_simgle_item__(i)
-                    dict2emb[uid] = model.predict(A)
-
-                with open("dict2emb", "wb") as outfile:
-                    pickle.dump(dict2emb, outfile)
 
     time_elapsed = time.time() - since
     print(

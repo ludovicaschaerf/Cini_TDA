@@ -12,7 +12,7 @@ import pickle
 class ReplicaDataset(Dataset):
     """Replica dataset."""
 
-    def __init__(self, csv_file, embeds_folder, root_dir):
+    def __init__(self, csv_file, embeds_folder, subset_dir, root_dir, phase):
         """
         Args:
             csv_file (string): Path to the csv file with annotations. Path to train.csv or test.csv
@@ -26,8 +26,10 @@ class ReplicaDataset(Dataset):
             .agg({"img1": lambda x: list(x), "img2": lambda x: list(x), "set": "first"})
             .reset_index()
         )
+        self.subset = pd.read_csv(subset_dir)
         self.embeds_folder = embeds_folder
         self.root_dir = root_dir
+        self.phase = phase
 
     def __len__(self):
         return len(self.data)
@@ -36,29 +38,29 @@ class ReplicaDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        img_1 = os.path.join(self.root_dir, self.data.loc[idx, "uid"] + ".jpg")
+        img_1 = os.path.join(self.root_dir, self.phase, self.data.loc[idx, "uid"] + ".jpg")
 
         list_b = set(
             list(self.data.loc[idx, "img2"]) + list(self.data.loc[idx, "img1"])
         )
 
-        img_2 = os.path.join(self.root_dir, list(list_b.remove(self.data.loc[idx, "uid"]))[0] + ".jpg")
+        img_2 = os.path.join(self.root_dir, self.phase, list(list_b)[0] + ".jpg")
 
         with open(self.embeds_folder, "rb") as infile:
             embeds = pickle.load(infile)
 
         tree = make_tree(
-            self.data[~self.data.index.isin(list(list_b))].reset_index(),
-            embeds=embeds,
+            self.subset[~self.subset['uid'].isin(list(list_b))].reset_index(),
+            embeds,
         )  
         
         c = find_most_similar(
             self.data[self.data.index == idx],
-            self.data[~self.data.index.isin(list(list_b))].reset_index(),
+            self.subset[~self.subset['uid'].isin(list(list_b))].reset_index(),
             tree,
-            embeds=embeds,
+            embeds,
         )
-        img_3 = os.path.join(self.root_dir, c + ".jpg")
+        img_3 = os.path.join(self.root_dir, 'subset/', c[0] + ".jpg")
 
         A = preprocess_image(img_1)
         B = preprocess_image(img_2)
@@ -69,7 +71,7 @@ class ReplicaDataset(Dataset):
         return sample
 
     def __get_simgle_item__(self, idx):
-        img_1 = os.path.join(self.root_dir, self.data.loc[idx, "uid"] + ".jpg")
+        img_1 = os.path.join(self.root_dir, self.phase, self.data.loc[idx, "uid"] + ".jpg")
 
         uid = self.data.loc[idx, "uid"]
         A = preprocess_image(img_1)
@@ -88,16 +90,15 @@ class ReplicaDataset(Dataset):
             embeds = pickle.load(infile)
 
         tree = make_tree(
-            self.data[self.data.index == idx].reset_index(),
-            embeds=embeds,
-            n=4
+            self.subset[self.subset['uid'] != self.data.loc[idx, "uid"]].reset_index(),
+            embeds
         )  
         
         list_c = find_most_similar(
             self.data[self.data.index == idx],
-            self.data[self.data.index != idx].reset_index(),
+            self.subset[self.subset['uid'] != self.data.loc[idx, "uid"]].reset_index(),
             tree,
-            embeds=embeds,
+            embeds,
             n=4
         )
 
