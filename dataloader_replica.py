@@ -71,21 +71,16 @@ class ReplicaDataset(Dataset):
         return sample
 
     def __get_simgle_item__(self, idx):
-        img_1 = os.path.join(self.root_dir, self.phase, self.data.loc[idx, "uid"] + ".jpg")
+        img_1 = os.path.join(self.root_dir, 'subset/', self.subset.loc[idx, "uid"] + ".jpg")
 
-        uid = self.data.loc[idx, "uid"]
+        uid = self.subset.loc[idx, "uid"]
         A = preprocess_image(img_1)
-
         return uid, A
 
-    def __get_set_b__(self, idx):
-        list_b = set(
-            list(self.data.loc[idx, "img2"]) + list(self.data.loc[idx, "img1"])
-        )
-        return list_b
-
-    def __get_set_c__(self, idx):
-
+    def __get_metadata__(self, idx):
+        
+        uid = self.data.loc[idx, "uid"]
+        
         with open(self.embeds_folder, "rb") as infile:
             embeds = pickle.load(infile)
 
@@ -102,4 +97,8 @@ class ReplicaDataset(Dataset):
             n=4
         )
 
-        return set(list_c)
+        list_b = set(
+            list(self.data.loc[idx, "img2"]) + list(self.data.loc[idx, "img1"])
+        )
+
+        return uid, list_b, list_c

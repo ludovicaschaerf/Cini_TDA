@@ -2,13 +2,10 @@ import torch
 from torch import nn
 from torchvision import models
 from scipy import sparse
-
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-device = "cpu"
         
 
 class ReplicaNet(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, device):
         super(ReplicaNet, self).__init__()
 
         efficientnet_b7 = models.efficientnet_b7(pretrained=True, progress=False)
@@ -46,9 +43,9 @@ class ReplicaNet(torch.nn.Module):
     def predict(self, a):
         a_emb = self.efficientnet(a)
         a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
-        return sparse.csr_matrix(a_norm.detach().numpy().T)
+        return sparse.csr_matrix(a_norm.cpu().detach().numpy().T).T
 
     def evaluate(self, set_b, set_c):
         intersection = set_b.intersection(set_c)
-        return len(list(intersection)) / len(list(set_c))
+        return len(list(intersection)) / min(len(list(set_c)), len(list(set_b)))
 
