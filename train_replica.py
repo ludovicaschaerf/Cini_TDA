@@ -49,6 +49,11 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
                 # forward
                 # track history if only in train
                 with torch.set_grad_enabled(phase == "train"):
+
+                    for param in model.modules():
+                        if isinstance(param, nn.BatchNorm2d):
+                            param.requires_grad = False
+                    
                     # Forward pass
                     A, B, C = model(a, b, c)
                     # Compute and print loss

@@ -94,7 +94,7 @@ class ReplicaDataset(Dataset):
             self.subset[self.subset['uid'] != self.data.loc[idx, "uid"]].reset_index(),
             tree,
             embeds,
-            n=4
+            n=5
         )
 
         list_b = set(

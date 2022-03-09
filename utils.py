@@ -62,7 +62,10 @@ def get_embedding(img, model):
 
 def make_tree(metadata, embeds):
     metadata = metadata.groupby("uid").first().reset_index()
-    A = [embeds[it].toarray()[0] for it in metadata['uid']]
+    if type(list(embeds.values())[0]) == np.ndarray:
+        A = np.array([np.array(embeds[it]) for it in metadata['uid']])
+    else:
+        A = np.array([np.array(embeds[it].toarray()[0]) for it in metadata['uid']])
     #kdt = NearestNeighbors(n_neighbors=n, metric="euclidean").fit(A)
     kdt = BallTree(A, metric="euclidean")
 
@@ -71,7 +74,10 @@ def make_tree(metadata, embeds):
 
 def find_most_similar(row, metadata, kdt, embeds, n=1):
     B = list(metadata["uid"])
-    img = embeds[row["uid"].values[0]].toarray()[0].reshape(1, -1)
+    if type(list(embeds.values())[0]) == np.ndarray:
+        img = embeds[row["uid"].values[0]].reshape(1, -1)
+    else:
+        img = embeds[row["uid"].values[0]].toarray()[0].reshape(1, -1)
     #cv = kdt.kneighbors(img)[1][0][:n]
     cv = kdt.query(img, k=n)[1][0]
     return [B[c] for c in cv]

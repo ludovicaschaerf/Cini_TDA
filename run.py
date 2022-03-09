@@ -6,6 +6,9 @@ from torch.utils.data import DataLoader
 from glob import glob
 import torch
 torch.cuda.empty_cache()
+import gc
+gc.collect()
+
 import argparse
 
 def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, device='gpu'):
@@ -14,7 +17,7 @@ def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, devi
     dataset_sizes = {x: len(dts[x]) for x in ["train", "test"]}
 
     if device == 'gpu':
-        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu") # cuda requires batch size of 4
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # cuda requires batch size of 4
     else:
         device='cpu'
     
