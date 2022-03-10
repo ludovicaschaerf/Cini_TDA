@@ -88,7 +88,7 @@ def show_most_similar(row, metadata, kdt, embeds, n=1):
     metadata = metadata.groupby("uid").first().reset_index()
     cv = find_most_similar(row, metadata, kdt, embeds, n=n)
 
-    print("reference image", row["uid"].values[0])
+    print("reference image", row["uid"].values[0], row["AuthorOriginal"].values[0], row["Description"].values[0])
     display(
         Image2('/scratch/students/schaerf/' + row["set"].values[0] + "/" + row["uid"].values[0] + ".jpg", width=400, height=400)
     )

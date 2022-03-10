@@ -6,6 +6,7 @@ from torch.optim import lr_scheduler
 from tqdm import tqdm
 import pickle
 from scipy import sparse
+import pandas as pd
 
 def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/scratch/students/schaerf/', num_epochs=20, batch_size=8):
 
@@ -67,8 +68,9 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
                 # statistics
                 running_loss += loss.item() * a.size(0)
                 
-                if epoch % 2 == 0:
+                if epoch % 2 == 1:
                     for j in range(batch_size):
+                        
                         if i*batch_size + j < dataset_sizes[phase]:
                             uid, set_b, set_c = dts[phase].__get_metadata__(i*batch_size + j)
                             dict2emb[uid] = sparse.csr_matrix(A[j].cpu().detach().numpy().T)
@@ -94,9 +96,7 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
                     accuracies.append(epoch_test_acc)
                     print("{} Loss: {:.4f} Accuracy @ 4 {:.4f}".format(phase, epoch_loss, epoch_test_acc))
 
-                with open(data_dir + "dict2emb.pkl", "wb") as outfile: ## not updating images in subset
-                    pickle.dump(dict2emb, outfile)
-
+                
             else:
                 print("{} Loss: {:.4f}".format(phase, epoch_loss))
             
@@ -107,6 +107,19 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
             ):  # needs to be changed to val
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
+        
+        if epoch % 2 == 0:
+            
+            subset = pd.read_csv(data_dir + 'subset.csv')
+
+            for i in tqdm(range(subset.shape[0])):
+                uid, a = dts[phase].__get_simgle_item__(i)
+                a = a.squeeze(1).to(device)
+                dict2emb[uid] = model.predict(a)
+
+        with open(data_dir + "dict2emb.pkl", "wb") as outfile: ## not updating images in subset
+            pickle.dump(dict2emb, outfile)
+
 
     time_elapsed = time.time() - since
     print(

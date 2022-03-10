@@ -37,7 +37,7 @@ class ReplicaNet(torch.nn.Module):
         return num_features
 
     def predict(self, a):
-        a_emb = self.efficientnet1(a)
+        a_emb = self.efficientnet(a)
         a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
         return sparse.csr_matrix(a_norm.cpu().detach().numpy())
 
