@@ -14,7 +14,7 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
     best_model_wts = copy.deepcopy(model.state_dict())
 
     triplet_loss = nn.TripletMarginLoss(
-        margin=0.3, reduction='sum' # to be optimized margin
+        margin=0.01, reduction='sum' # to be optimized margin
     )
     
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-6) # to be optimized lr and method
@@ -25,8 +25,8 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
     test_accuracy = 0
     accuracies = []
 
-    with open(data_dir + "dict2emb.pkl", "rb") as infile:
-            dict2emb = pickle.load(infile)
+    # with open(data_dir + "dict2emb.pkl", "rb") as infile:
+    #         dict2emb = pickle.load(infile)
 
     for epoch in range(num_epochs):
                
@@ -68,39 +68,28 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
                 # statistics
                 running_loss += loss.item() * a.size(0)
                 
-                if epoch % 2 == 1:
+                if phase == "test":
                     for j in range(batch_size):
                         
-                        if i*batch_size + j < dataset_sizes[phase]:
-                            uid, set_b, set_c = dts[phase].__get_metadata__(i*batch_size + j)
-                            dict2emb[uid] = sparse.csr_matrix(A[j].cpu().detach().numpy().T)
-
-                        if phase == "train":
-                            train_accuracy += model.evaluate(set_b, set_c)
-                        else:
+                        if i * batch_size + j < dataset_sizes[phase]:
+                            set_b = dts[phase].__get_set_b__(i*batch_size + j)
+                            set_c = dts[phase].__get_set_c_test__(A[j].cpu().detach().numpy())
+                        
                             test_accuracy += model.evaluate(set_b, set_c)
-
-                #break 
-
+                
             if phase == "train":
                 scheduler.step()
 
             epoch_loss = running_loss / dataset_sizes[phase]
-            if epoch % 2 == 0:
-                if phase == "train":
-                    epoch_train_acc = train_accuracy / dataset_sizes[phase]
-                    print("{} Loss: {:.4f} Accuracy @ 4 {:.4f}".format(phase, epoch_loss, epoch_train_acc))
+            if phase == "train":
+                print("{} Loss: {:.4f} ".format(phase, epoch_loss))
 
-                else:
-                    epoch_test_acc = train_accuracy / dataset_sizes[phase]
-                    accuracies.append(epoch_test_acc)
-                    print("{} Loss: {:.4f} Accuracy @ 4 {:.4f}".format(phase, epoch_loss, epoch_test_acc))
+            else:
+                epoch_test_acc = train_accuracy / dataset_sizes[phase]
+                accuracies.append(epoch_test_acc)
+                print("{} Loss: {:.4f} Recall @ 20 {:.4f}".format(phase, epoch_loss, epoch_test_acc))
 
                 
-            else:
-                print("{} Loss: {:.4f}".format(phase, epoch_loss))
-            
-
             # deep copy the model
             if (
                 phase == "test" and epoch_loss < best_loss
@@ -108,17 +97,17 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
         
-        if epoch % 2 == 0:
+        # if epoch % 2 == 0:
             
-            subset = pd.read_csv(data_dir + 'subset.csv')
+        #     subset = pd.read_csv(data_dir + 'subset.csv') ## keep only indices not in test
+            
+        #     for i in tqdm(range(subset.shape[0])):
+        #         uid, a = dts[phase].__get_simgle_item__(i)
+        #         a = a.squeeze(1).to(device)
+        #         dict2emb[uid] = model.predict(a)
 
-            for i in tqdm(range(subset.shape[0])):
-                uid, a = dts[phase].__get_simgle_item__(i)
-                a = a.squeeze(1).to(device)
-                dict2emb[uid] = model.predict(a)
-
-        with open(data_dir + "dict2emb.pkl", "wb") as outfile: ## not updating images in subset
-            pickle.dump(dict2emb, outfile)
+        # with open(data_dir + "dict2emb.pkl", "wb") as outfile: ## not updating images in subset
+        #     pickle.dump(dict2emb, outfile)
 
 
     time_elapsed = time.time() - since
@@ -128,7 +117,7 @@ def train_replica(model, loaders, dataset_sizes, dts, device='cpu', data_dir='/s
         )
     )
     print("Best val loss: {:4f}".format(best_loss))
-    print("Best val acc: {:4f}".format(max(accuracies)))
+    print("Best val recall: {:4f}".format(max(accuracies)))
 
     # load best model weights
     model.load_state_dict(best_model_wts)

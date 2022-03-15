@@ -42,6 +42,6 @@ class ReplicaNet(torch.nn.Module):
         return sparse.csr_matrix(a_norm.cpu().detach().numpy())
 
     def evaluate(self, set_b, set_c):
-        intersection = set_b.intersection(set_c)
+        intersection = set_c.intersection(set_b)
         return len(list(intersection)) / min(len(list(set_c)), len(list(set_b)))
 

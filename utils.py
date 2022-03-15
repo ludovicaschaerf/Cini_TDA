@@ -63,10 +63,10 @@ def get_embedding(img, model):
 def make_tree(metadata, embeds):
     metadata = metadata.groupby("uid").first().reset_index()
     if type(list(embeds.values())[0]) == np.ndarray:
-        A = np.array([np.array(embeds[it]) for it in metadata['uid']])
+        A = np.array([np.array(embeds[it]) for it in metadata["uid"]])
     else:
-        A = np.array([np.array(embeds[it].toarray()[0]) for it in metadata['uid']])
-    #kdt = NearestNeighbors(n_neighbors=n, metric="euclidean").fit(A)
+        A = np.array([np.array(embeds[it].toarray()[0]) for it in metadata["uid"]])
+    # kdt = NearestNeighbors(n_neighbors=n, metric="euclidean").fit(A)
     kdt = BallTree(A, metric="euclidean")
 
     return kdt
@@ -78,36 +78,75 @@ def find_most_similar(row, metadata, kdt, embeds, n=1):
         img = embeds[row["uid"].values[0]].reshape(1, -1)
     else:
         img = embeds[row["uid"].values[0]].toarray()[0].reshape(1, -1)
-    #cv = kdt.kneighbors(img)[1][0][:n]
+    # cv = kdt.kneighbors(img)[1][0][:n]
+    cv = kdt.query(img, k=n)[1][0]
+    return [B[c] for c in cv]
+
+
+def find_most_similar_embed(row_emb, metadata, kdt, embeds, n=1):
+    B = list(metadata["uid"])
+    img = row_emb.reshape(1, -1)
+
     cv = kdt.query(img, k=n)[1][0]
     return [B[c] for c in cv]
 
 
 def show_most_similar(row, metadata, kdt, embeds, n=1):
 
-    metadata = metadata.groupby("uid").first().reset_index()
-    cv = find_most_similar(row, metadata, kdt, embeds, n=n)
-
-    print("reference image", row["uid"].values[0], row["AuthorOriginal"].values[0], row["Description"].values[0])
-    display(
-        Image2('/scratch/students/schaerf/' + row["set"].values[0] + "/" + row["uid"].values[0] + ".jpg", width=400, height=400)
+    metadata = (
+        metadata.groupby("uid")
+        .agg({"img1": lambda x: list(x), "img2": lambda x: list(x), "set": "first"})
+        .reset_index()
     )
 
-    if row["uid"].values[0] == row["img1"].values[0]:
-        print("actual most similar image", row["img2"].values[0])
-        display(
-            Image2(
-                '/scratch/students/schaerf/' + row["set"].values[0] + "/" + row["img2"].values[0] + ".jpg", width=400, height=400
-            )
+    cv = find_most_similar(row, metadata, kdt, embeds, n=21)
+    index = metadata.loc[metadata["uid"] == row["uid"].values[0]].index[0]
+
+    print("reference image", row["uid"].values[0])
+    print(row["AuthorOriginal"].values[0], row["Description"].values[0])
+    display(
+        Image2(
+            "/scratch/students/schaerf/"
+            + row["set"].values[0]
+            + "/"
+            + row["uid"].values[0]
+            + ".jpg",
+            width=400,
+            height=400,
         )
-    else:
-        print("actual most similar image", row["img1"].values[0])
+    )
+
+    try:
+        most_sim = set(
+            list(metadata.loc[index, "img2"]) + list(metadata.loc[index, "img1"])
+        )
+        most_sim.remove(row["uid"].values[0])
+    except:
+        most_sim = set(
+            list(metadata.loc[index, "img2"]) + list(metadata.loc[index, "img1"])
+        )
+
+    print("actual most similar image", list(most_sim)[0])
+    display(
+        Image2(
+            "/scratch/students/schaerf/"
+            + row["set"].values[0]
+            + "/"
+            + list(most_sim)[0]
+            + ".jpg",
+            width=400,
+            height=400,
+        )
+    )
+
+    for i in range(1, n):
+        print(i + 1, "th most similar image according to model", cv[i])
         display(
             Image2(
-                '/scratch/students/schaerf/' + row["set"].values[0] + "/" + row["img1"].values[0] + ".jpg", width=400, height=400
+                "/scratch/students/schaerf/subset/" + cv[i] + ".jpg",
+                width=400,
+                height=400,
             )
         )
 
-    for i in range(len(cv)):
-        print(i+1, "th most similar image according to model", cv[i])
-        display(Image2('/scratch/students/schaerf/subset/' + cv[i] + ".jpg", width=400, height=400))
+    print('Recall @ 20: ',  len(list(set(cv[1:]).intersection(most_sim))) / min(len(cv[1:]), len(list(most_sim))))

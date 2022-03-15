@@ -27,40 +27,74 @@ class ReplicaDataset(Dataset):
             .reset_index()
         )
         self.subset = pd.read_csv(subset_dir)
-        self.embeds_folder = embeds_folder
+        
+        with open(embeds_folder, "rb") as infile:
+            self.embeds = pickle.load(infile)
+
         self.root_dir = root_dir
         self.phase = phase
+
+        self.tree_test = make_tree(
+            self.subset,
+            self.embeds,
+        )  
+        
 
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        img_1 = os.path.join(self.root_dir, self.phase, self.data.loc[idx, "uid"] + ".jpg")
-
-        list_b = set(
+    def __get_set_b__(self, idx):
+        
+        set_b = set(
             list(self.data.loc[idx, "img2"]) + list(self.data.loc[idx, "img1"])
         )
 
-        img_2 = os.path.join(self.root_dir, self.phase, list(list_b)[0] + ".jpg")
+        return set_b
 
-        with open(self.embeds_folder, "rb") as infile:
-            embeds = pickle.load(infile)
+    def __get_set_c_train__(self, idx, set_b):
 
         tree = make_tree(
-            self.subset[~self.subset['uid'].isin(list(list_b))].reset_index(),
-            embeds,
+            self.subset[~self.subset['uid'].isin(list(set_b))].reset_index(),
+            self.embeds,
         )  
-        
-        c = find_most_similar(
-            self.data[self.data.index == idx],
-            self.subset[~self.subset['uid'].isin(list(list_b))].reset_index(),
-            tree,
-            embeds,
+        set_c = set(
+            find_most_similar(
+                self.data[self.data.index == idx],
+                self.subset[~self.subset['uid'].isin(list(set_b))].reset_index(),
+                tree,
+                self.embeds,
+                n=20
+            )
         )
-        img_3 = os.path.join(self.root_dir, 'subset/', c[0] + ".jpg")
+
+        return set_c
+
+    def __get_set_c_test__(self, A):
+        set_c = set(
+            find_most_similar_embed(
+                A,
+                self.subset,
+                self.tree_test,
+                self.embeds,
+                n=21
+            )[1:]
+        )
+        return set_c
+
+    def __getitem__(self, idx):
+        
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+
+        set_b = self.__get_set_b__(idx)
+        set_c = self.__get_set_c_train__(idx, set_b)
+
+        img_1 = os.path.join(self.root_dir, self.phase, self.data.loc[idx, "uid"] + ".jpg")
+
+        img_2 = os.path.join(self.root_dir, self.phase, list(set_b)[0] + ".jpg")
+
+        img_3 = os.path.join(self.root_dir, 'subset/', list(set_c)[0] + ".jpg")
 
         A = preprocess_image(img_1)
         B = preprocess_image(img_2)
@@ -76,29 +110,3 @@ class ReplicaDataset(Dataset):
         uid = self.subset.loc[idx, "uid"]
         A = preprocess_image(img_1)
         return uid, A
-
-    def __get_metadata__(self, idx):
-        
-        uid = self.data.loc[idx, "uid"]
-        
-        with open(self.embeds_folder, "rb") as infile:
-            embeds = pickle.load(infile)
-
-        tree = make_tree(
-            self.subset[self.subset['uid'] != self.data.loc[idx, "uid"]].reset_index(),
-            embeds
-        )  
-        
-        list_c = find_most_similar(
-            self.data[self.data.index == idx],
-            self.subset[self.subset['uid'] != self.data.loc[idx, "uid"]].reset_index(),
-            tree,
-            embeds,
-            n=5
-        )
-
-        list_b = set(
-            list(self.data.loc[idx, "img2"]) + list(self.data.loc[idx, "img1"])
-        )
-
-        return uid, list_b, list_c

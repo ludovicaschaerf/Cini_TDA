@@ -25,7 +25,7 @@ def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, devi
 
     if data_dir + "model_weights" in glob(data_dir + "model_weights"):
         print("loaded from previously stored weights")
-        model.load_state_dict(torch.load(data_dir + "model_weights"))
+        #model.load_state_dict(torch.load(data_dir + "model_weights"))
 
     model = train_replica(model, train_dataloaders, dataset_sizes, dts, device=device, data_dir=data_dir, num_epochs=num_epochs, batch_size=batch_size)
     torch.save(model.state_dict(), data_dir + "model_weights")
