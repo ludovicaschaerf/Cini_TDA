@@ -6,7 +6,7 @@ import pandas as pd
 import networkx as nx
 import numpy as np
 from sklearn.neighbors import NearestNeighbors, BallTree
-
+import umap
 
 def get_train_test_split(metadata, morphograph):
 
@@ -46,7 +46,7 @@ def preprocess_image(img_name):
     img = Image.open(img_name)
     tfms = transforms.Compose(
         [
-            transforms.Resize((224, 224)),
+            transforms.Resize((480, 480)),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]
@@ -60,6 +60,10 @@ def get_embedding(img, model):
     return embedding / norm
 
 
+def get_lower_dimension(embeddings, dimensions=100):
+    embeddings_new = umap.UMAP(n_components=dimensions, metric='cosine').fit(embeddings)
+    return embeddings_new.embedding_
+
 def make_tree(metadata, embeds):
     metadata = metadata.groupby("uid").first().reset_index()
     if type(list(embeds.values())[0]) == np.ndarray:
@@ -69,6 +73,10 @@ def make_tree(metadata, embeds):
     #kdt = NearestNeighbors(n_neighbors=n, metric="euclidean").fit(A)
     kdt = BallTree(A, metric="euclidean")
 
+    return kdt
+
+def make_tree_list(embeds):
+    kdt = BallTree(embeds, metric="euclidean")
     return kdt
 
 
@@ -82,6 +90,10 @@ def find_most_similar(row, metadata, kdt, embeds, n=1):
     cv = kdt.query(img, k=n)[1][0]
     return [B[c] for c in cv]
 
+def find_most_similar_list(uid, kdt, embeds, uids, uids_match, n=20):
+    img = embeds[np.where(np.array(uids) == uid)[0]].reshape(1, -1)
+    cv = kdt.query(img, k=n)[1][0]
+    return [uids[c] for c in cv if uids[c] not in uids_match]
 
 def show_most_similar(row, metadata, kdt, embeds, n=1):
 
