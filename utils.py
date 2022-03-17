@@ -7,6 +7,8 @@ import networkx as nx
 import numpy as np
 from sklearn.neighbors import NearestNeighbors, BallTree
 import umap
+from tqdm import tqdm
+from glob import glob
 
 def get_train_test_split(metadata, morphograph):
 
@@ -123,3 +125,36 @@ def show_most_similar(row, metadata, kdt, embeds, n=1):
     for i in range(len(cv)):
         print(i+1, "th most similar image according to model", cv[i])
         display(Image2('/scratch/students/schaerf/subset/' + cv[i] + ".jpg", width=400, height=400))
+
+
+def make_training_set(data_dir, model, subset):
+    embeddings = [get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg'), model).squeeze(3).squeeze(1).squeeze(0) for uid in tqdm(subset['uid'].unique())]
+    embeddings_new = get_lower_dimension(embeddings)
+    tree = make_tree_list(embeddings_new)
+
+    train_test = subset[subset['set'].notnull()].drop(columns=['level_0']).reset_index()
+
+    Cs = []
+    for i in tqdm(range(train_test.shape[0])):
+        list_theo = list(train_test[train_test['img1'] == train_test['uid'][i]]['img2']) + list(train_test[train_test['img2'] == train_test['uid'][i]]['img1']) + [train_test['uid'][i]]
+        list_ = find_most_similar_list(train_test['uid'][i], tree, embeddings_new, list(subset['uid'].unique()), list_theo)
+        Cs.append(list_)
+
+    print(len(Cs))
+
+    train_test['C'] = Cs
+
+    list_downloaded = [file.split('/')[-1].split('.')[0] for file in glob(data_dir + 'subset/*')]
+
+
+    train_test = train_test[train_test['img1'].isin(list_downloaded)]
+    train_test = train_test[train_test['img2'].isin(list_downloaded)]
+
+    final = train_test[['img1', 'img2', 'C', 'set']].explode('C')
+    final.columns = ['A', 'B', 'C', 'set']
+    print(final.shape)
+
+    final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'abc_train.csv')
+    final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'abc_test.csv')
+
+    return final

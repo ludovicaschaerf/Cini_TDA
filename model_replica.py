@@ -8,20 +8,18 @@ class ReplicaNet(torch.nn.Module):
     def __init__(self, device):
         super(ReplicaNet, self).__init__()
 
-        efficientnet_b7 = models.efficientnet_b0(pretrained=True, progress=False)
-        efficientnet_b7.classifier = nn.Sequential()
-        
-        self.efficientnet = efficientnet_b7.to(device)
+        model = models.resnet50(pretrained=True)
+        newmodel = torch.nn.Sequential(
+            *(list(model.children())[:-2]), nn.AdaptiveMaxPool2d((1,1))
+        )
+
+        self.model = newmodel.to(device)
         
     def forward(self, a, b, c):
-        # if self.training:
-        #    print('training')
-        # else:
-        #    print('eval')
-
-        a_emb = self.efficientnet(a)
-        b_emb = self.efficientnet(b)
-        c_emb = self.efficientnet(c)
+        
+        a_emb = self.model(a)
+        b_emb = self.model(b)
+        c_emb = self.model(c)
         
         a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
         b_norm = torch.div(b_emb, torch.linalg.vector_norm(b_emb))
@@ -37,7 +35,7 @@ class ReplicaNet(torch.nn.Module):
         return num_features
 
     def predict(self, a):
-        a_emb = self.efficientnet(a)
+        a_emb = self.model(a)
         a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
         return sparse.csr_matrix(a_norm.cpu().detach().numpy())
 
