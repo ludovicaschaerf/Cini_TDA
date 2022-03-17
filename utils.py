@@ -56,8 +56,8 @@ def preprocess_image(img_name):
     return tfms(img).unsqueeze(0)
 
 
-def get_embedding(img, model):
-    embedding = model(img).detach().numpy().T
+def get_embedding(img, model, device='cpu'):
+    embedding = model(img.squeeze(1).to(device), img.squeeze(1).to(device), img.squeeze(1).to(device))[0].cpu().detach().numpy().T
     norm = np.linalg.norm(embedding)
     return embedding / norm
 
@@ -127,8 +127,8 @@ def show_most_similar(row, metadata, kdt, embeds, n=1):
         display(Image2('/scratch/students/schaerf/subset/' + cv[i] + ".jpg", width=400, height=400))
 
 
-def make_training_set(data_dir, model, subset):
-    embeddings = [get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg'), model).squeeze(3).squeeze(1).squeeze(0) for uid in tqdm(subset['uid'].unique())]
+def make_training_set(data_dir, model, subset, device='cpu'):
+    embeddings = [get_embedding(preprocess_image(data_dir + uid + '.jpg'), model, device=device).squeeze(3).squeeze(1).squeeze(0) for uid in tqdm(subset['uid'].unique())]
     embeddings_new = get_lower_dimension(embeddings)
     tree = make_tree_list(embeddings_new)
 

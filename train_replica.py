@@ -17,10 +17,10 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
     best_model_wts = copy.deepcopy(model.state_dict())
 
     triplet_loss = nn.TripletMarginLoss(
-        margin=0.01, reduction='sum' # to be optimized margin
+        margin=0.1, reduction='sum' # to be optimized margin
     )
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5) # to be optimized lr and method
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-6) # to be optimized lr and method
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1) # to be optimized step and gamma
 
     best_loss = 1000
@@ -91,9 +91,9 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
                 best_model_wts = copy.deepcopy(model.state_dict())
         
         
-        if epoch % 10 == 0:
+        if epoch % 5 == 4:
             subset = pd.read_csv(data_dir + 'subset.csv')
-            make_training_set(data_dir + 'subset/', model, subset)
+            make_training_set(data_dir + 'subset/', model, subset, device=device)
             loaders.__reload__(data_dir + 'abc_train.csv')
             loaders.__reload__(data_dir + 'abc_test.csv')
             train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "test"]}
@@ -111,5 +111,7 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
 
     # load best model weights
     model.load_state_dict(best_model_wts)
+    
+    pd.Series(losses, name='loss').to_csv(data_dir + 'losses.csv')
     
     return model

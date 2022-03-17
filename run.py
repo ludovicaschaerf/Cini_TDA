@@ -21,7 +21,7 @@ def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, devi
     
     model = ReplicaNet(device)
 
-    if data_dir + "model_weights" in glob(data_dir + "model_weights_resnet"):
+    if data_dir + "model_weights_resnet" in glob(data_dir + "model_weights_resnet"):
         print("loaded from previously stored weights")
         model.load_state_dict(torch.load(data_dir + "model_weights_resnet"))
 
