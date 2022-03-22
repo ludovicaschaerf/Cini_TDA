@@ -10,6 +10,43 @@ import umap
 from tqdm import tqdm
 from glob import glob
 
+#########################################################
+##### Create pre-trained embeddings
+#########################################################
+
+def make_tree_orig(embeds):
+    kdt = BallTree(np.vstack(embeds[:,1]), metric="euclidean")
+    return kdt
+
+def find_most_similar_orig(uid, tree, embeds, uids, n=401):
+    img = np.vstack(embeds[embeds[:,0] == uid][:,1]).reshape(1, -1)
+    cv = tree.query(img, k=n)[1][0]
+    return [uids[c] for c in cv if uids[c] != uid] #not in uids_match
+
+def find_pos_matches(uids_sim, uids_match, how='all'):
+    matched = list(filter(lambda i: uids_sim[i] in uids_match, range(len(uids_sim))))
+    while len(matched) < len(uids_match):
+        matched.append(400)
+    if how == 'all':
+        if len(matched) > 0:
+            return matched
+        else:
+            return [400]
+    elif how == 'first':
+        if len(matched) > 0:
+            return matched[0]
+        else:
+            return 400
+    elif how == 'median':
+        if len(matched) > 0:
+            return np.median(np.array(matched))
+        else:
+            return 400
+
+def make_rank(uids_sim, uids_match):
+    return [1 if uid in uids_match else 0 for uid in uids_sim]
+        
+
 def get_train_test_split(metadata, morphograph):
 
     positives = morphograph[morphograph["type"] == "POSITIVE"]

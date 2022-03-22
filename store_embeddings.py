@@ -13,6 +13,20 @@ data = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'leve
 def create_model(model_name, pooling):
     if model_name == "resnet50":
         model = models.resnet50(pretrained=True)
+    elif model_name == "resnet101":
+        model = models.resnet101(pretrained=True)
+    elif model_name == "resnet152":
+        model = models.resnet152(pretrained=True)
+    elif model_name == 'densenet161':
+        model = models.densenet161(pretrained=True)
+    elif model_name == 'resnext-101':
+        model = models.resnext101_32x8d(pretrained=True)
+    elif model_name == 'regnet_x_32gf':
+        model = models.regnet_y_32gf(pretrained=True)
+    elif model_name == 'vit_b_16':
+        model = models.vit_b_16(pretrained=True)
+    elif model_name == 'convnext_tiny':
+        model = models.convnext_tiny(pretrained=True)
     elif model_name == "efficientnet0":
         model = models.efficientnet_b0(pretrained=True)
     elif model_name == "efficientnet7":
@@ -47,8 +61,8 @@ def get_embedding_orig(img, model, device='cpu'):
     return embedding / norm
 
 
-for model in ['resnet50', 'efficientnet0', 'efficientnet7']:
-    for pool in ['max', 'avg']:
+for model in []: #'resnet50', 'efficientnet0', 'efficientnet7', 'resnet101', 'resnet152', 'densenet161', 'resnext-101', 'regnet_x_32gf', 
+    for pool in ['avg']: #'max', 
         for resolution in [240, 480]:
             print(model, pool, resolution)
             newmodel = create_model(model, pool)
