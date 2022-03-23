@@ -61,9 +61,9 @@ def get_embedding_orig(img, model, device='cpu'):
     return embedding / norm
 
 
-for model in []: #'resnet50', 'efficientnet0', 'efficientnet7', 'resnet101', 'resnet152', 'densenet161', 'resnext-101', 'regnet_x_32gf', 
+for model in ['resnext-101']: #'resnet50', 'efficientnet0', 'efficientnet7', 'resnet101', 'resnet152', 'densenet161', 'resnext-101', 'regnet_x_32gf', 
     for pool in ['avg']: #'max', 
-        for resolution in [240, 480]:
+        for resolution in [620]: #240, 480
             print(model, pool, resolution)
             newmodel = create_model(model, pool)
             embeddings = [[uid, get_embedding_orig(preprocess_image_orig(data_dir + 'subset/' + uid + '.jpg', resolution), newmodel).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]

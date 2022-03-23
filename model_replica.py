@@ -5,14 +5,39 @@ from scipy import sparse
         
 
 class ReplicaNet(torch.nn.Module):
-    def __init__(self, device):
+    def __init__(self, model_name, device, pooling='avg'):
         super(ReplicaNet, self).__init__()
 
-        model = models.resnet50(pretrained=True)
-        newmodel = torch.nn.Sequential(
-            *(list(model.children())[:-2]), nn.AdaptiveMaxPool2d((1,1))
-        )
+        if model_name == "resnet50":
+            model = models.resnet50(pretrained=True)
+        elif model_name == "resnet101":
+            model = models.resnet101(pretrained=True)
+        elif model_name == "resnet152":
+            model = models.resnet152(pretrained=True)
+        elif model_name == 'densenet161':
+            model = models.densenet161(pretrained=True)
+        elif model_name == 'resnext-101':
+            model = models.resnext101_32x8d(pretrained=True)
+        elif model_name == 'regnet_x_32gf':
+            model = models.regnet_y_32gf(pretrained=True)
+        elif model_name == 'vit_b_16':
+            model = models.vit_b_16(pretrained=True)
+        elif model_name == 'convnext_tiny':
+            model = models.convnext_tiny(pretrained=True)
+        elif model_name == "efficientnet0":
+            model = models.efficientnet_b0(pretrained=True)
+        elif model_name == "efficientnet7":
+            model = models.efficientnet_b7(pretrained=True)
 
+        if pooling == "avg":
+            newmodel = torch.nn.Sequential(
+                *(list(model.children())[:-2]), nn.AdaptiveAvgPool2d((1, 1))
+            )
+        elif pooling == 'max':
+            newmodel = torch.nn.Sequential(
+                *(list(model.children())[:-2]), nn.AdaptiveMaxPool2d((1, 1), )
+            )
+        
         self.model = newmodel.to(device)
         
     def forward(self, a, b, c):
@@ -37,9 +62,4 @@ class ReplicaNet(torch.nn.Module):
     def predict(self, a):
         a_emb = self.model(a)
         a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
-        return sparse.csr_matrix(a_norm.cpu().detach().numpy())
-
-    def evaluate(self, set_b, set_c):
-        intersection = set_b.intersection(set_c)
-        return len(list(intersection)) / min(len(list(set_c)), len(list(set_b)))
-
+        return a_norm.cpu().detach().numpy()

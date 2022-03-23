@@ -23,6 +23,11 @@ def find_most_similar_orig(uid, tree, embeds, uids, n=401):
     cv = tree.query(img, k=n)[1][0]
     return [uids[c] for c in cv if uids[c] != uid] #not in uids_match
 
+def find_most_similar_no_theo(uid, tree, embeds, uids, list_theo, n=401):
+    img = np.vstack(embeds[embeds[:,0] == uid][:,1]).reshape(1, -1)
+    cv = tree.query(img, k=n)[1][0]
+    return [uids[c] for c in cv if uids[c] not in list_theo] #not in uids_match
+
 def find_pos_matches(uids_sim, uids_match, how='all'):
     matched = list(filter(lambda i: uids_sim[i] in uids_match, range(len(uids_sim))))
     while len(matched) < len(uids_match):
@@ -81,13 +86,13 @@ def get_train_test_split(metadata, morphograph):
     return positives
 
 
-def preprocess_image(img_name):
+def preprocess_image(img_name, resolution=480):
     img = Image.open(img_name)
     tfms = transforms.Compose(
         [
-            transforms.Resize((480, 480)),
+            transforms.Resize((resolution, resolution)),
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]
     )
     return tfms(img).unsqueeze(0)
