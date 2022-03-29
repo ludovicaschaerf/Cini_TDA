@@ -62,4 +62,4 @@ class ReplicaNet(torch.nn.Module):
     def predict(self, a):
         a_emb = self.model(a)
         a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
-        return a_norm.cpu().detach().numpy()
+        return a_norm

@@ -6,9 +6,9 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
+from metrics import * #recall_at_k, mean_average_precision
+from utils import * 
 
-data_dir = '/scratch/students/schaerf/'
-data = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 def create_model(model_name, pooling):
     if model_name == "resnet50":
@@ -43,28 +43,140 @@ def create_model(model_name, pooling):
     
     return newmodel
 
-def preprocess_image_orig(img_name, resolution=480):
-    img = Image.open(img_name)
-    tfms = transforms.Compose(
-        [
-            transforms.Resize((resolution, resolution)),
-            transforms.ToTensor(),
-            #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ]
+
+
+def get_scores(embeddings, train_test, data, list_downloaded):
+    tree = make_tree_orig(embeddings)
+    Cs = []
+    Bs = []
+    pos = []
+    ranks = []
+
+    for i in tqdm(range(train_test.shape[0])):
+        if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded) & (train_test["set"][i] == 'test'):
+            list_theo = (
+                list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
+                + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
+                + [train_test["uid"][i]]
+            )
+            Bs.append(list_theo)
+            list_sim = find_most_similar_orig(
+                train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), n=4357
+            )
+            Cs.append(list_sim[:400])
+            matches = find_pos_matches(list_sim[:400], list_theo, how="all")
+            pos.append(matches)
+            rank = make_rank(list_sim, list_theo)
+            ranks.append(rank)
+            
+    posses = [po for p in pos for po in p]
+    posses_min = [p[0] for p in pos]
+    posses_med = [np.median(np.array(p)) for p in pos]
+
+    mean_position = np.mean(np.array(posses))
+    mean_min_position = np.mean(np.array(posses_min))
+    mean_median_position = np.mean(np.array(posses_med))
+            
+    print('all positions', mean_position)
+    print('min positions', mean_min_position)
+    print('median positions', mean_median_position)
+
+    map = mean_average_precision(ranks)
+    print('mean average precision', map)
+
+    recall_400 = np.mean([recall_at_k(ranks[i], 400) for i in range(len(ranks))])
+    recall_200 = np.mean([recall_at_k(ranks[i], 200) for i in range(len(ranks))])
+    recall_100 = np.mean([recall_at_k(ranks[i], 100) for i in range(len(ranks))])
+    recall_50 = np.mean([recall_at_k(ranks[i], 50) for i in range(len(ranks))])
+    recall_20 = np.mean([recall_at_k(ranks[i], 20) for i in range(len(ranks))])
+    print('recall @ 400', recall_400)
+    print('recall @ 200', recall_200)
+    print('recall @ 100', recall_100)
+    print('recall @ 50', recall_50)
+    print('recall @ 20', recall_20)
+
+    return mean_position, mean_min_position, mean_median_position, map, recall_400, recall_200, recall_100, recall_50, recall_20
+
+def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False):
+    tree = make_tree_orig(embeddings)
+    Cs = []
+    for i in tqdm(range(train_test.shape[0])):
+            list_theo = (
+                list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
+                + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
+                + [train_test["uid"][i]]
+            )
+            list_sim = find_most_similar_no_theo(
+                train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), list_theo, n=50
+            )
+            Cs.append(list_sim)
+            
+
+    print(len(Cs))
+
+    train_test['C'] = Cs
+
+    list_downloaded = [file.split('/')[-1].split('.')[0] for file in glob(data_dir + 'subset/*')]
+
+
+    train_test = train_test[train_test['img1'].isin(list_downloaded)]
+    train_test = train_test[train_test['img2'].isin(list_downloaded)]
+
+    final = train_test[['img1', 'img2', 'C', 'set']].explode('C')
+    final.columns = ['A', 'B', 'C', 'set']
+    print(final.shape)
+
+    if epoch:
+        final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'abc_train' + epoch + '.csv')
+        final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'abc_test' + epoch + '.csv')
+    else:
+        final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'abc_train.csv')
+        final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'abc_test.csv')
+
+    return final
+
+
+def show_similars(row, embeddings, train_test, data):
+    
+    tree = make_tree_orig(embeddings)
+    
+    list_theo = (
+        list(train_test[train_test["img1"] == row["uid"].values[0]]["img2"])
+        + list(train_test[train_test["img2"] == row["uid"].values[0]]["img1"])
+        #+ [row["uid"].values[0]]
     )
-    return tfms(img).unsqueeze(0)
+
+    theo = list(set(list_theo))[0]
+            
+    sim = find_most_similar_orig(
+        row["uid"].values[0], tree, embeddings, list(data["uid"].unique()), n=4
+    )
+
+    print("reference image", row["uid"].values[0], row["AuthorOriginal"].values[0], row["Description"].values[0])
+    display(
+        Image2('/scratch/students/schaerf/subset/' + row["uid"].values[0] + ".jpg", width=400, height=400)
+    )
+
+    print("actual most similar image", theo)
+    display(
+        Image2(
+            '/scratch/students/schaerf/subset/' + theo + ".jpg", width=400, height=400
+        )
+    )
+    
+    for i in range(len(sim)):
+        print(i+1, "th most similar image according to model", sim[i])
+        display(Image2('/scratch/students/schaerf/subset/' + sim[i] + ".jpg", width=400, height=400))
+   
 
 
-def get_embedding_orig(img, model, device='cpu'):
-    embedding = model(img.squeeze(1).to(device))[0].cpu().detach().numpy()
-    norm = np.linalg.norm(embedding)
-    return embedding / norm
-
-
-for model in ['resnext-101']: #'resnet50', 'efficientnet0', 'efficientnet7', 'resnet101', 'resnet152', 'densenet161', 'resnext-101', 'regnet_x_32gf', 
-    for pool in ['avg']: #'max', 
-        for resolution in [620]: #240, 480
-            print(model, pool, resolution)
-            newmodel = create_model(model, pool)
-            embeddings = [[uid, get_embedding_orig(preprocess_image_orig(data_dir + 'subset/' + uid + '.jpg', resolution), newmodel).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]
-            np.save(data_dir + model + '_' + pool + '_' + str(resolution) + '.npy', np.array(embeddings, dtype=np.ndarray))
+def main(models, pools, resolutions):
+    data_dir = '/scratch/students/schaerf/'
+    data = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+    for model in models: # ['resnext-101']'resnet50', 'efficientnet0', 'efficientnet7', 'resnet101', 'resnet152', 'densenet161', 'resnext-101', 'regnet_x_32gf', 
+        for pool in pools: #'max', ['avg'] 
+            for resolution in resolutions: #240, 480 [620]
+                print(model, pool, resolution)
+                newmodel = create_model(model, pool)
+                embeddings = [[uid, get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg', resolution), newmodel).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]
+                np.save(data_dir + model + '_' + pool + '_' + str(resolution) + '.npy', np.array(embeddings, dtype=np.ndarray))

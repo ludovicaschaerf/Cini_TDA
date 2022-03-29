@@ -7,11 +7,12 @@ import networkx as nx
 import numpy as np
 from sklearn.neighbors import NearestNeighbors, BallTree
 import umap
+from sklearn.decomposition import PCA, TruncatedSVD
 from tqdm import tqdm
 from glob import glob
 
 #########################################################
-##### Create pre-trained embeddings
+##### Create embeddings
 #########################################################
 
 def make_tree_orig(embeds):
@@ -51,6 +52,10 @@ def find_pos_matches(uids_sim, uids_match, how='all'):
 def make_rank(uids_sim, uids_match):
     return [1 if uid in uids_match else 0 for uid in uids_sim]
         
+#########################################################
+##### Create train and test set
+#########################################################
+
 
 def get_train_test_split(metadata, morphograph):
 
@@ -85,28 +90,54 @@ def get_train_test_split(metadata, morphograph):
 
     return positives
 
+#########################################################
+##### Processing
+#########################################################
 
 def preprocess_image(img_name, resolution=480):
     img = Image.open(img_name)
     tfms = transforms.Compose(
         [
-            transforms.Resize((resolution, resolution)),
             transforms.ToTensor(),
-            #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            transforms.RandomResizedCrop((resolution, resolution), ),
+            #transforms.Resize((resolution, resolution)),
+            transforms.ColorJitter(
+                    brightness=0.4,
+                    contrast=0.4,
+                    saturation=0.4
+            ),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            
         ]
     )
     return tfms(img).unsqueeze(0)
 
 
-def get_embedding(img, model, device='cpu'):
-    embedding = model(img.squeeze(1).to(device), img.squeeze(1).to(device), img.squeeze(1).to(device))[0].cpu().detach().numpy().T
-    norm = np.linalg.norm(embedding)
-    return embedding / norm
+def get_embedding(img, model, type='fine_tune', device='cpu'):
+    if type == 'fine_tune':
+        embedding = model.predict(img.squeeze(1).to(device))[0].cpu().detach().numpy()
+    else:
+        embedding = model(img.squeeze(1).to(device))[0].cpu().detach().numpy()
+        norm = np.linalg.norm(embedding)
+        embedding = embedding / norm
+    return embedding 
+
+def get_lower_dimension(embeddings, dimensions=100, method='umap'):
+    if method == 'umap':
+        embeddings_new = umap.UMAP(n_components=dimensions, metric='cosine').fit(np.vstack(embeddings[:,1]))
+        embeddings_new = embeddings_new.embedding_
+    elif method == 'pca':
+        embeddings_new = PCA(n_components=dimensions).fit_transform(np.vstack(embeddings[:,1]))
+    elif method == 'svd':
+        embeddings_new = TruncatedSVD(n_components=dimensions).fit_transform(np.vstack(embeddings[:,1]))
+    
+    return embeddings_new
 
 
-def get_lower_dimension(embeddings, dimensions=100):
-    embeddings_new = umap.UMAP(n_components=dimensions, metric='cosine').fit(embeddings)
-    return embeddings_new.embedding_
+#########################################################
+##### Deprecated
+#########################################################
+
 
 def make_tree(metadata, embeds):
     metadata = metadata.groupby("uid").first().reset_index()

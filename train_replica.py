@@ -7,27 +7,25 @@ from tqdm import tqdm
 import pickle
 from scipy import sparse
 import pandas as pd
-from utils import make_training_set
+from utils import *
 from torch.utils.data import DataLoader
+from store_embeddings import *
 
-
-def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratch/students/schaerf/', num_epochs=20, batch_size=8):
+def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratch/students/schaerf/', model_name='resnext-101', resolution=360, num_epochs=20, batch_size=8):
 
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
 
     triplet_loss = nn.TripletMarginLoss(
-        margin=0.1, reduction='sum' # to be optimized margin
+        margin=0.01, reduction='sum' # to be optimized margin
     )
     
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5) # to be optimized lr and method
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1) # to be optimized step and gamma
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.01) # to be optimized step and gamma
 
     best_loss = 1000
-    #train_accuracy = 0
-    #test_accuracy = 0
-    #accuracies = []
     losses = []
+    scores = []
     
     train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "test"]}
     
@@ -71,14 +69,12 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
                 # statistics
                 running_loss += loss.item() * a.size(0)
                 
-                
 
             if phase == "train":
                 scheduler.step()
 
             epoch_loss = running_loss / dataset_sizes[phase]
-            if phase == 'test':
-                losses.append(epoch_loss)
+            losses.append(epoch_loss)
 
             print("{} Loss: {:.4f}".format(phase, epoch_loss))
 
@@ -91,12 +87,26 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
                 best_model_wts = copy.deepcopy(model.state_dict())
         
         
-        if epoch % 50 == 49:
-            subset = pd.read_csv(data_dir + 'subset.csv')
-            make_training_set(data_dir + 'subset/', model, subset, device=device)
-            loaders.__reload__(data_dir + 'abc_train.csv')
-            loaders.__reload__(data_dir + 'abc_test.csv')
-            train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "test"]}
+                if epoch % 2 == 0:
+                    data = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+                    embeddings = [[uid, get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg', resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]
+                    embeddings = np.array(embeddings, dtype=np.ndarray)
+                    np.save(data_dir + model_name + '_epoch_' + str(epoch) + '.npy', embeddings)
+            
+                    list_downloaded = [
+                        file.split("/")[-1].split(".")[0] for file in glob(data_dir + "subset/*")
+                    ]
+                    print(len(list_downloaded))
+
+                    train_test = data[data["set"].notnull()].reset_index() 
+                    print(train_test.shape)
+
+                    scores.append(get_scores(embeddings, train_test, data, list_downloaded))
+            
+                    make_training_set_orig(embeddings, train_test, data, data_dir, epoch=epoch)
+                    loaders[phase].__reload__(data_dir + 'abc_train_' + epoch + '.csv')
+                    loaders[phase].__reload__(data_dir + 'abc_test' + epoch + '.csv')
+                    train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "test"]}
     
 
 
@@ -113,5 +123,6 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
     model.load_state_dict(best_model_wts)
     
     pd.Series(losses, name='loss').to_csv(data_dir + 'losses.csv')
+    pd.DataFrame(scores, columns=['mean_position', 'mean_min_position', 'mean_median_position', 'map', 'recall_400', 'recall_200', 'recall_100', 'recall_50', 'recall_20']).to_csv(data_dir + 'scores.csv')
     
     return model

@@ -15,7 +15,7 @@ def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, mode
     dataset_sizes = {x: len(dts[x]) for x in ["train", "test"]}
 
     if device == 'cuda':
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # cuda requires batch size of 4
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu") # cuda requires batch size of 4
     else:
         device='cpu'
     
@@ -23,9 +23,9 @@ def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, mode
 
     if data_dir + "model_weights_" + model_name in glob(data_dir + "model_weights_" + model_name):
         print("loaded from previously stored weights")
-        model.load_state_dict(torch.load(data_dir + "model_weights_" + model_name))
+        #model.load_state_dict(torch.load(data_dir + "model_weights_" + model_name))
 
-    model = train_replica(model, dts, dataset_sizes, device=device, data_dir=data_dir, num_epochs=num_epochs, batch_size=batch_size)
+    model = train_replica(model, dts, dataset_sizes, device=device, data_dir=data_dir, num_epochs=num_epochs, model_name=model_name, resolution=resolution, batch_size=batch_size)
     torch.save(model.state_dict(), data_dir + "model_weights_" + model_name)
 
 
