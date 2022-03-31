@@ -99,14 +99,14 @@ def preprocess_image(img_name, resolution=480):
     tfms = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.RandomResizedCrop((resolution, resolution), ),
-            #transforms.Resize((resolution, resolution)),
-            transforms.ColorJitter(
-                    brightness=0.4,
-                    contrast=0.4,
-                    saturation=0.4
-            ),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            #transforms.RandomResizedCrop((resolution, resolution), ),
+            transforms.Resize((resolution, resolution)),
+            #transforms.ColorJitter(
+            #        brightness=0.4,
+            #        contrast=0.4,
+            #        saturation=0.4
+            #),
+            #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             
         ]
     )

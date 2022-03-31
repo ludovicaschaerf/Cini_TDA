@@ -49,7 +49,7 @@ class ReplicaNet(torch.nn.Module):
         a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
         b_norm = torch.div(b_emb, torch.linalg.vector_norm(b_emb))
         c_norm = torch.div(c_emb, torch.linalg.vector_norm(c_emb))
-
+        
         return a_norm, b_norm, c_norm
 
     def size(self, a):

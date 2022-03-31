@@ -50,6 +50,7 @@ class ReplicaDataset(Dataset):
         return uid, A
 
     def __reload__(self, csv_file):
+        #del self.data
         self.data = pd.read_csv(csv_file)
         print('reloaded data', self.data.shape)
         

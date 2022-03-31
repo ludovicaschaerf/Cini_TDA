@@ -97,7 +97,7 @@ def get_scores(embeddings, train_test, data, list_downloaded):
 
     return mean_position, mean_min_position, mean_median_position, map, recall_400, recall_200, recall_100, recall_50, recall_20
 
-def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False):
+def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False, n=10):
     tree = make_tree_orig(embeddings)
     Cs = []
     for i in tqdm(range(train_test.shape[0])):
@@ -107,7 +107,7 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False):
                 + [train_test["uid"][i]]
             )
             list_sim = find_most_similar_no_theo(
-                train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), list_theo, n=50
+                train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), list_theo, n=n+1
             )
             Cs.append(list_sim)
             
@@ -124,14 +124,15 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False):
 
     final = train_test[['img1', 'img2', 'C', 'set']].explode('C')
     final.columns = ['A', 'B', 'C', 'set']
+    final = final[final['C'].notnull()]
     print(final.shape)
 
     if epoch:
-        final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'abc_train' + epoch + '.csv')
-        final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'abc_test' + epoch + '.csv')
+        final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train_' + str(epoch) + '.csv')
+        final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test_' + str(epoch) + '.csv')
     else:
-        final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'abc_train.csv')
-        final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'abc_test.csv')
+        final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train.csv')
+        final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test.csv')
 
     return final
 
@@ -179,4 +180,4 @@ def main(models, pools, resolutions):
                 print(model, pool, resolution)
                 newmodel = create_model(model, pool)
                 embeddings = [[uid, get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg', resolution), newmodel).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]
-                np.save(data_dir + model + '_' + pool + '_' + str(resolution) + '.npy', np.array(embeddings, dtype=np.ndarray))
+                np.save(data_dir + 'models/' + model + '_' + pool + '_' + str(resolution) + '.npy', np.array(embeddings, dtype=np.ndarray))

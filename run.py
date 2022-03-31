@@ -9,6 +9,11 @@ import gc
 gc.collect()
 
 import argparse
+from datetime import datetime
+
+now = datetime.now()
+now = now.strftime("%d-%m-%Y_%H:%M:%S")
+print(now)
 
 def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, model_name='resnext-101', device='cuda', resolution=480):
     dts = {x: ReplicaDataset(data_dir + 'abc_' + x + '.csv', data_dir + 'subset.csv', data_dir, x, resolution) for x in ['train', 'test']}
@@ -21,12 +26,12 @@ def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, mode
     
     model = ReplicaNet(model_name, device)
 
-    if data_dir + "model_weights_" + model_name in glob(data_dir + "model_weights_" + model_name):
+    if data_dir + "models/model_weights_" + model_name in glob(data_dir + "models/*"):
         print("loaded from previously stored weights")
-        #model.load_state_dict(torch.load(data_dir + "model_weights_" + model_name))
+        model.load_state_dict(torch.load(data_dir + "models/model_weights_" + now + model_name))
 
     model = train_replica(model, dts, dataset_sizes, device=device, data_dir=data_dir, num_epochs=num_epochs, model_name=model_name, resolution=resolution, batch_size=batch_size)
-    torch.save(model.state_dict(), data_dir + "model_weights_" + model_name)
+    torch.save(model.state_dict(), data_dir + "models/model_weights_" + now + model_name)
 
 
 if __name__ == "__main__":
@@ -40,6 +45,3 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     main(args.data_dir, args.batch_size, args.num_epochs, args.model_name, args.device, args.resolution)
-
-
-
