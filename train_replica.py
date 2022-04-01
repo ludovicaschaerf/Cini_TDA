@@ -27,7 +27,7 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-6) # to be optimized lr and method
     scheduler = lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.01) # to be optimized step and gamma
 
-    best_loss = 1000
+    best_loss = 10000000
     losses = []
     scores = []
     
@@ -118,6 +118,7 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
             if (
                 phase == "test" and epoch_loss < best_loss
             ):  # needs to be changed to val
+                print('Model updating! Best loss so far')
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
         

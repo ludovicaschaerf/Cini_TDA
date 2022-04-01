@@ -15,14 +15,22 @@ from glob import glob
 ##### Create embeddings
 #########################################################
 
-def make_tree_orig(embeds):
-    kdt = BallTree(np.vstack(embeds[:,1]), metric="euclidean")
-    return kdt
+def make_tree_orig(embeds, reverse_map = False):
+    if reverse_map:
+        kdt = BallTree(np.vstack(embeds[:,1]), metric="euclidean")
+        reverse_map = {k:embeds[k,0] for k in range(len(embeds))}
+        return kdt, reverse_map
+    else:
+        kdt = BallTree(np.vstack(embeds[:,1]), metric="euclidean")
+        return kdt
 
-def find_most_similar_orig(uid, tree, embeds, uids, n=401):
+def find_most_similar_orig(uid, tree, embeds, uids, n=401, reverse_map=False):
     img = np.vstack(embeds[embeds[:,0] == uid][:,1]).reshape(1, -1)
     cv = tree.query(img, k=n)[1][0]
-    return [uids[c] for c in cv if uids[c] != uid] #not in uids_match
+    if reverse_map:
+        return [reverse_map[c] for c in cv if reverse_map[c] != uid] #not in uids_match
+    else:
+        return [uids[c] for c in cv if uids[c] != uid]
 
 def find_most_similar_no_theo(uid, tree, embeds, uids, list_theo, n=401):
     img = np.vstack(embeds[embeds[:,0] == uid][:,1]).reshape(1, -1)

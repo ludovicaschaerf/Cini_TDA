@@ -8,6 +8,10 @@ from PIL import Image
 import numpy as np
 from metrics import * #recall_at_k, mean_average_precision
 from utils import * 
+from IPython.display import Image as Image2
+from IPython.display import display
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 
 def create_model(model_name, pooling):
@@ -45,8 +49,12 @@ def create_model(model_name, pooling):
 
 
 
-def get_scores(embeddings, train_test, data, list_downloaded):
-    tree = make_tree_orig(embeddings)
+def get_scores(embeddings, train_test, data, list_downloaded, reverse_map=False):
+    if reverse_map:
+        tree, reverse_map = make_tree_orig(embeddings, True)
+        print(list(reverse_map.items())[:10])
+    else:
+        tree = make_tree_orig(embeddings)
     Cs = []
     Bs = []
     pos = []
@@ -61,7 +69,7 @@ def get_scores(embeddings, train_test, data, list_downloaded):
             )
             Bs.append(list_theo)
             list_sim = find_most_similar_orig(
-                train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), n=4357
+                train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), n=4357, reverse_map=reverse_map
             )
             Cs.append(list_sim[:400])
             matches = find_pos_matches(list_sim[:400], list_theo, how="all")
@@ -170,6 +178,36 @@ def show_similars(row, embeddings, train_test, data):
         display(Image2('/scratch/students/schaerf/subset/' + sim[i] + ".jpg", width=400, height=400))
    
 
+def show_suggestions(row, embeddings, train_test):
+    
+    tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
+    
+    if row["set"].values[0] in ['train', 'test']:
+        list_theo = (
+            list(train_test[train_test["img1"] == row["uid"].values[0]]["img2"])
+            + list(train_test[train_test["img2"] == row["uid"].values[0]]["img1"])
+            + [row["uid"].values[0]]
+        )
+    else:
+        list_theo = [row["uid"].values[0]]
+        
+    sim = find_most_similar_no_theo(
+        row["uid"].values[0], tree, embeddings, reverse_map, list_theo, n=4
+    )
+
+
+    f, axarr = plt.subplots(1,4, figsize=(30,10))
+    img_A = mpimg.imread('/scratch/students/schaerf/subset/' + row["uid"].values[0] + ".jpg")
+    
+    axarr[0].imshow(img_A)
+    axarr[0].set_title("reference image " + row["uid"].values[0] + row["AuthorOriginal"].values[0] + row["Description"].values[0])
+    for i in range(len(sim)):
+        axarr[i+1].set_title(str(i) + "th most similar image" + sim[i])
+        axarr[i+1].imshow(mpimg.imread('/scratch/students/schaerf/subset/' + sim[i] + ".jpg"))
+    
+    plt.show()
+    return row["uid"].values[0], sim
+    
 
 def main(models, pools, resolutions):
     data_dir = '/scratch/students/schaerf/'
