@@ -11,7 +11,7 @@ import pickle
 import kmapper as km
 from tqdm import tqdm
 
-# scp MapperClass_Proj-TSNE_Clstr-DBSCAN-1pt5_Date-202109120_NLim-330000 schaerf@iccluster040.iccluster.epfl.ch:/home/schaerf/Cini_TDA/replica10000_keplermapper_output.html  C:OneDrive\Desktop
+# scp MapperClass_Proj-TSNE_Clstr-DBSCAN-1pt5_Date-202109120_NLim-330000 schaerf@iccluster040.iccluster.epfl.ch:/scratch/students/schaerf/mapper/replicasubset_finetune_keplermapper_output.html  C:OneDrive\Desktop
 from mapper_tools import MapperGraph, ClusterGraph
 
 N_LIMIT = 10000
@@ -21,9 +21,10 @@ PROJECTION = 'Proj-TSNE_Clstr-DBSCAN-1pt5'
 path = '/home/guhennec/scratch/2021_Cini/TopologicalAnalysis_Cini/data/'
 data_dir = '/scratch/students/schaerf/'
 
-data = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
+#data = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
 #data = np.load(data_dir + 'embeddings/resnext-101_avg_480.npy', allow_pickle=True)
-        
+data = np.load(data_dir + 'embeddings/resnext-101_epoch_0_31_03.npy', allow_pickle=True)
+                
 signatures_resnet = np.stack(data[:, 1])[:N_LIMIT]
 #signatures_vgg = np.stack(data[:, 2])[:N_LIMIT]
 print('\n> (1/6) Data loaded properly \n')

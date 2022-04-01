@@ -20,7 +20,7 @@ class MapperGraph:
 
     
     df = pd.read_csv(path + 'Cini_20210811.csv', sep=';', low_memory=False) 
-    #df = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+    df = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
     #print(df.shape)
     
     mapper = km.KeplerMapper(verbose=1)
@@ -28,8 +28,9 @@ class MapperGraph:
     def __init__(self, data, n, projection, cover, clustering):
            
         self.data = data 
-        self.uids = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)[:,0][0:n]
+        #self.uids = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)[:,0][0:n]
         #self.uids = np.load(data_dir + 'embeddings/resnext-101_avg_480.npy', allow_pickle=True)[:,0][0:n]
+        self.uids = np.load(data_dir + 'embeddings/resnext-101_epoch_0_31_03.npy', allow_pickle=True)[:,0][0:n]
         
         with open(path + 'save_link_data_2018_08_02.pkl', 'rb') as f:
             morpho_complete  = pickle.load(f)
@@ -146,7 +147,7 @@ class MapperGraph:
         return good_nodes 
 
     def visualize_graph(self): # todo : fix this 
-        html = self.mapper.visualize(self.graph,path_html=data_dir + "mapper/replica10000_keplermapper_output.html",
+        html = self.mapper.visualize(self.graph,path_html=data_dir + "mapper/replicasubset_finetune_keplermapper_output.html",
                  title="replica10000(n_samples=10000)", 
                  custom_tooltips = np.array([f"<img src= 'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{image}.jpg/full/300,/0/default.jpg'>" for (drawer, image) in pd.merge(pd.Series(self.uids, name = 'uid').to_frame(), self.df, on = 'uid', how = 'left')[['Drawer', 'ImageNumber']].values]))
 
@@ -160,7 +161,7 @@ class ClusterGraph():
 
     #uids = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)[:,0] 
     uids = np.load(data_dir + 'embeddings/resnext-101_avg_480.npy', allow_pickle=True)[:,0]
-        
+            
     # df = pd.read_csv(path + 'Cini_20210811.csv', sep=';', low_memory=False)
     df = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
     
