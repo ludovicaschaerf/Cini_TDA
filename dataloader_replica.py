@@ -12,7 +12,7 @@ import pickle
 class ReplicaDataset(Dataset):
     """Replica dataset."""
 
-    def __init__(self, csv_file, subset_dir, root_dir, phase, resolution=480):
+    def __init__(self, csv_file, subset_dir, replica_dir, root_dir, phase, resolution=480):
         """
         Args:
             csv_file (string): Path to the csv file with annotations. Path to train.csv or test.csv
@@ -25,6 +25,7 @@ class ReplicaDataset(Dataset):
         self.resolution = resolution
         self.root_dir = root_dir
         self.phase = phase
+        self.replica_dir = replica_dir
 
     def __len__(self):
         return len(self.data)
@@ -33,9 +34,9 @@ class ReplicaDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        A = preprocess_image(self.root_dir + 'subset/' + self.data.loc[idx, "A"] + ".jpg", resolution=self.resolution)
-        B = preprocess_image(self.root_dir + 'subset/' + self.data.loc[idx, "B"] + ".jpg", resolution=self.resolution)
-        C = preprocess_image(self.root_dir + 'subset/' + self.data.loc[idx, "C"] + ".jpg", resolution=self.resolution)
+        A = preprocess_image(self.replica_dir + self.data.loc[idx, "A_path"], resolution=self.resolution)
+        B = preprocess_image(self.replica_dir + self.data.loc[idx, "B_path"], resolution=self.resolution)
+        C = preprocess_image(self.replica_dir + self.data.loc[idx, "C_path"], resolution=self.resolution)
 
         sample = [A, B, C]
 
@@ -43,7 +44,7 @@ class ReplicaDataset(Dataset):
 
     def __get_simgle_item__(self, idx):
         
-        img_1 = os.path.join(self.root_dir, 'subset/', self.subset.loc[idx, "uid"] + ".jpg")
+        img_1 = os.path.join(self.replica_dir + self.subset.loc[idx, "uid"])
         uid = self.subset.loc[idx, "uid"]
         A = preprocess_image(img_1, resolution=self.resolution)
         

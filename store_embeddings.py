@@ -49,16 +49,20 @@ def create_model(model_name, pooling):
 
 
 
-def get_scores(embeddings, train_test, data, list_downloaded, reverse_map=False):
+def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=False):
     if reverse_map:
         tree, reverse_map = make_tree_orig(embeddings, True)
-        print(list(reverse_map.items())[:10])
+    
     else:
         tree = make_tree_orig(embeddings)
+        reverse_map = list(data['uid'].unique())
     Cs = []
     Bs = []
     pos = []
     ranks = []
+
+    if not list_downloaded:
+        list_downloaded = list(train_test["img1"]) + list(train_test["img2"])
 
     for i in tqdm(range(train_test.shape[0])):
         if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded) & (train_test["set"][i] == 'test'):
@@ -68,8 +72,9 @@ def get_scores(embeddings, train_test, data, list_downloaded, reverse_map=False)
                 + [train_test["uid"][i]]
             )
             Bs.append(list_theo)
+            
             list_sim = find_most_similar_orig(
-                train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), n=4357, reverse_map=reverse_map
+                train_test["uid"][i], tree, embeddings, reverse_map, n=min(data.shape[0], 4000)
             )
             Cs.append(list_sim[:400])
             matches = find_pos_matches(list_sim[:400], list_theo, how="all")
@@ -120,27 +125,32 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False, 
             Cs.append(list_sim)
             
 
-    print(len(Cs))
-
+    
     train_test['C'] = Cs
 
-    list_downloaded = [file.split('/')[-1].split('.')[0] for file in glob(data_dir + 'subset/*')]
+    #list_downloaded = [file.split('/')[-1].split('.')[0] for file in glob(data_dir + 'subset/*')]
 
-
-    train_test = train_test[train_test['img1'].isin(list_downloaded)]
-    train_test = train_test[train_test['img2'].isin(list_downloaded)]
+    #train_test = train_test[train_test['img1'].isin(list_downloaded)]
+    #train_test = train_test[train_test['img2'].isin(list_downloaded)]
 
     final = train_test[['img1', 'img2', 'C', 'set']].explode('C')
     final.columns = ['A', 'B', 'C', 'set']
-    final = final[final['C'].notnull()]
+    final['A_path'] = final['A'].apply(lambda x: catch(x))
+    final['B_path'] = final['B'].apply(lambda x: catch(x))
+    final['C_path'] = final['C'].apply(lambda x: catch(x))
+    
+    final = final[final['C_path'].notnull() & final['A_path'].notnull() & final['B_path'].notnull()]
     print(final.shape)
+    print(final.tail())
 
     if epoch:
         final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train_' + str(epoch) + '.csv')
         final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test_' + str(epoch) + '.csv')
+        final[final['set'] == 'val'].reset_index().to_csv(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
     else:
         final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train.csv')
         final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test.csv')
+        final[final['set'] == 'val'].reset_index().to_csv(data_dir + 'dataset/abc_val.csv')
 
     return final
 
@@ -179,7 +189,8 @@ def show_similars(row, embeddings, train_test, data):
    
 
 def show_suggestions(row, embeddings, train_test):
-    
+    replica_dir = '/mnt/project_replica/datasets/cini/'
+
     tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
     
     if row["set"].values[0] in ['train', 'test']:
@@ -192,18 +203,18 @@ def show_suggestions(row, embeddings, train_test):
         list_theo = [row["uid"].values[0]]
         
     sim = find_most_similar_no_theo(
-        row["uid"].values[0], tree, embeddings, reverse_map, list_theo, n=4
+        row["uid"].values[0], tree, embeddings, reverse_map, list_theo, n=8
     )
 
 
-    f, axarr = plt.subplots(1,4, figsize=(30,10))
-    img_A = mpimg.imread('/scratch/students/schaerf/subset/' + row["uid"].values[0] + ".jpg")
-    
+    f, axarr = plt.subplots(2,4, figsize=(30,10))
+    img_A = mpimg.imread(replica_dir + row["path"].values[0])
+    axarr = axarr.flatten()
     axarr[0].imshow(img_A)
-    axarr[0].set_title("reference image " + row["uid"].values[0] + row["AuthorOriginal"].values[0] + row["Description"].values[0])
+    axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
     for i in range(len(sim)):
         axarr[i+1].set_title(str(i) + "th most similar image" + sim[i])
-        axarr[i+1].imshow(mpimg.imread('/scratch/students/schaerf/subset/' + sim[i] + ".jpg"))
+        axarr[i+1].imshow(mpimg.imread(replica_dir + catch(sim[i])))
     
     plt.show()
     return row["uid"].values[0], sim

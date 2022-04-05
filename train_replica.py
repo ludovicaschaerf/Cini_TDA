@@ -11,11 +11,17 @@ from utils import *
 from torch.utils.data import DataLoader
 from store_embeddings import *
 from datetime import datetime
+# Parallelizing with Pool.starmap()
+#import multiprocessing as mp
+#from pqdm.processes import pqdm
+
+#count = mp.cpu_count()
+#print(count)
 
 now = datetime.now()
 now = now.strftime("%d-%m-%Y_%H:%M:%S")
-print(now)
-def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratch/students/schaerf/', model_name='resnext-101', resolution=360, num_epochs=20, batch_size=8):
+
+def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratch/students/schaerf/', replica_dir='/mnt/project_replica/datasets/cini/', model_name='resnext-101', resolution=360, num_epochs=20, batch_size=8):
 
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -32,27 +38,30 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
     scores = []
     
     
-    data = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
-    #embeddings = [[uid, get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg', resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]
-    #embeddings = np.array(embeddings, dtype=np.ndarray)
-    #np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy')
-    embeddings = np.load(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', allow_pickle=True)
+    data = pd.read_csv(data_dir + 'dedup_data_sample.csv').drop(columns=['Unnamed: 0', 'level_0'])
+    
+    #pool = mp.Pool(count - 15)
+    #embeddings = pool.starmap(get_embedding_path, [(replica_dir, model.to('cpu'), path, resolution, 'fine_tune', 'cpu') for path in tqdm(data['path'].unique())])
+    #embeddings = pqdm([(replica_dir, model.to('cpu'), path, resolution, 'fine_tune', 'cpu') for path in tqdm(data['path'].unique())], get_embedding_path, 30)
+    #pool.close()
+    
+    embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+
+    embeddings = np.array(embeddings, dtype=np.ndarray)
+    np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+    
+    #noww= '05-04-2022_11:41:09'#'04-04-2022_19:55:56'
+    #embeddings = np.load(data_dir + 'embeddings/' + model_name + '_epoch_none' + noww + '.npy', allow_pickle=True)
             
-    list_downloaded = [
-        file.split("/")[-1].split(".")[0] for file in glob(data_dir + "subset/*")
-    ]
-    print(len(list_downloaded))
-
     train_test = data[data["set"].notnull()].reset_index() 
-    print(train_test.shape)
-
-    scores.append(get_scores(embeddings, train_test, data, list_downloaded))
+    
+    scores.append(get_scores(embeddings, train_test, data))
             
     make_training_set_orig(embeddings, train_test, data, data_dir, epoch=100)
     loaders['train'].__reload__(data_dir + 'dataset/abc_train_' + str(100) + '.csv')
-    loaders['test'].__reload__(data_dir + 'dataset/abc_test_' + str(100) + '.csv')
-    train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "test"]}
-    print(loaders['test'].data.shape)
+    loaders['val'].__reload__(data_dir + 'dataset/abc_val_' + str(100) + '.csv')
+    train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "val"]}
+    
     for epoch in range(num_epochs):
                
         print("Epoch {}/{}".format(epoch, num_epochs - 1))
@@ -60,7 +69,7 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
 
         
         # Each epoch has a training and validation phase
-        for phase in ["train", "test"]:  # , 'val'
+        for phase in ["train", "val"]:  # , 'val'
             
             running_loss = 0.0
 
@@ -104,19 +113,19 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
 
             print("{} Loss: {:.4f}".format(phase, epoch_loss))
 
-            if phase == 'test':
-                embeddings = [[uid, get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg', resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]
+            if phase == 'val':
+                #pool = mp.Pool(count - 15)
+                #embeddings = pool.starmap(get_embedding_path, [(replica_dir, model.to('cpu'), path, resolution, 'fine_tune', 'cpu') for path in tqdm(data['path'].unique())])
+                #pool.close()
+                embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
                 embeddings = np.array(embeddings, dtype=np.ndarray)
                 np.save(data_dir + 'embeddings/' + model_name + '_epoch_' + str(epoch) + now + '.npy', embeddings)
             
-                train_test = data[data["set"].notnull()].reset_index() 
-                print(train_test.shape)
-
-                scores.append(get_scores(embeddings, train_test, data, list_downloaded))
+                scores.append(get_scores(embeddings, train_test, data))
             
             # deep copy the model
             if (
-                phase == "test" and epoch_loss < best_loss
+                phase == "val" and epoch_loss < best_loss
             ):  # needs to be changed to val
                 print('Model updating! Best loss so far')
                 best_loss = epoch_loss
@@ -124,8 +133,8 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
         
                 make_training_set_orig(embeddings, train_test, data, data_dir, epoch=epoch)
                 loaders['train'].__reload__(data_dir + 'dataset/abc_train_' + str(epoch) + '.csv')
-                loaders['test'].__reload__(data_dir + 'dataset/abc_test_' + str(epoch) + '.csv')
-                train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "test"]}
+                loaders['val'].__reload__(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
+                train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "val"]}
     
 
 

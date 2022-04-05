@@ -6,10 +6,16 @@ import pandas as pd
 import networkx as nx
 import numpy as np
 from sklearn.neighbors import NearestNeighbors, BallTree
-import umap
+#import umap
 from sklearn.decomposition import PCA, TruncatedSVD
 from tqdm import tqdm
 from glob import glob
+
+data_dir = '/scratch/students/schaerf/'
+
+with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
+    uid2path = pickle.load(outfile)
+
 
 #########################################################
 ##### Create embeddings
@@ -24,13 +30,10 @@ def make_tree_orig(embeds, reverse_map = False):
         kdt = BallTree(np.vstack(embeds[:,1]), metric="euclidean")
         return kdt
 
-def find_most_similar_orig(uid, tree, embeds, uids, n=401, reverse_map=False):
+def find_most_similar_orig(uid, tree, embeds, uids, n=401):
     img = np.vstack(embeds[embeds[:,0] == uid][:,1]).reshape(1, -1)
     cv = tree.query(img, k=n)[1][0]
-    if reverse_map:
-        return [reverse_map[c] for c in cv if reverse_map[c] != uid] #not in uids_match
-    else:
-        return [uids[c] for c in cv if uids[c] != uid]
+    return [uids[c] for c in cv if uids[c] != uid]
 
 def find_most_similar_no_theo(uid, tree, embeds, uids, list_theo, n=401):
     img = np.vstack(embeds[embeds[:,0] == uid][:,1]).reshape(1, -1)
@@ -59,7 +62,13 @@ def find_pos_matches(uids_sim, uids_match, how='all'):
 
 def make_rank(uids_sim, uids_match):
     return [1 if uid in uids_match else 0 for uid in uids_sim]
-        
+
+def catch(x):
+    try:
+        return uid2path[x]
+    except:
+        return np.nan
+
 #########################################################
 ##### Create train and test set
 #########################################################
@@ -96,6 +105,41 @@ def get_train_test_split(metadata, morphograph):
         "test" if cl % 3 == 0 else "train" for cl in positives["cluster"]
     ]
 
+    return positives
+
+def remove_duplicates(metadata, morphograph):
+
+    positives = morphograph[morphograph["type"] == "DUPLICATE"]
+    positives.columns = ["uid_connection", "img1", "img2", "type", "annotated"]
+
+    # creating connected components
+    G = nx.from_pandas_edgelist(
+        positives,
+        source="img1",
+        target="img2",
+        create_using=nx.DiGraph(),
+        edge_key="uid_connection",
+    )
+    components = [x for x in nx.weakly_connected_components(G)]
+
+    # merging the two files
+    positives = pd.concat(
+        [
+            metadata.merge(positives, left_on="uid", right_on="img1", how="outer"),
+            metadata.merge(positives, left_on="uid", right_on="img2", how="outer"),
+        ],
+        axis=0,
+    ).reset_index()
+
+    # adding set specification to df
+    mapper = {it:it for it in positives["uid"].unique()}
+
+    for number, nodes in enumerate(components):
+        for it in nodes:
+            mapper[it] = number
+              
+    positives["cluster"] = positives["uid"].apply(lambda x: mapper[x])
+    positives = positives.groupby('cluster').first().reset_index()
     return positives
 
 #########################################################
@@ -221,8 +265,6 @@ def make_training_set(data_dir, model, subset, device='cpu'):
         list_ = find_most_similar_list(train_test['uid'][i], tree, embeddings_new, list(subset['uid'].unique()), list_theo)
         Cs.append(list_)
 
-    print(len(Cs))
-
     train_test['C'] = Cs
 
     list_downloaded = [file.split('/')[-1].split('.')[0] for file in glob(data_dir + 'subset/*')]
@@ -233,8 +275,7 @@ def make_training_set(data_dir, model, subset, device='cpu'):
 
     final = train_test[['img1', 'img2', 'C', 'set']].explode('C')
     final.columns = ['A', 'B', 'C', 'set']
-    print(final.shape)
-
+    
     final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'abc_train.csv')
     final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'abc_test.csv')
 
