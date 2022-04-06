@@ -105,6 +105,8 @@ def get_train_test_split(metadata, morphograph):
         "test" if cl % 3 == 0 else "train" for cl in positives["cluster"]
     ]
 
+    positives['set'] = ['val' if i % 3 == 0 and cl == 'test' else cl for i,cl in enumerate(positives['set'])]
+
     return positives
 
 def remove_duplicates(metadata, morphograph):

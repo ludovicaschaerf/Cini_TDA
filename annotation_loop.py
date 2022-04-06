@@ -8,23 +8,23 @@ import numpy as np
 from store_embeddings import show_suggestions
 
 def get_data(data_dir='/scratch/students/schaerf/', size=1000):
-    data = pd.read_csv(data_dir + 'dedup_data.csv').sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+    data = pd.read_csv(data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
     path = '/home/guhennec/scratch/2021_Cini/TopologicalAnalysis_Cini/data/'
     embeddings = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
     print(embeddings.shape)
     embeddings = embeddings[np.isin(embeddings[:,0], list(data["uid"].unique()))]
-    return embeddings
+    return embeddings, data
 
-def main(data_dir='/scratch/students/schaerf/', embeddings=False, embds=False, size=1000):
+def main(data_dir='/scratch/students/schaerf/', embeddings=False, data=False, embds=False, size=1000):
+    
     with open(data_dir + 'annotation/morphograph_update.pkl', 'rb') as f:
         morpho_complete  = pickle.load(f)
     now = datetime.now()
     now = now.strftime("%d-%m-%Y_%H:%M:%S")
     
-    data = pd.read_csv(data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0'])#'full_data.csv')
-    train_test = data[data["set"].notnull()].reset_index() 
     if not embds:
-        embeddings = get_data(data_dir, size) #np.load(data_dir + 'embeddings/benoit.npy',allow_pickle=True)
+        embeddings, data = get_data(data_dir, size) #np.load(data_dir + 'embeddings/benoit.npy',allow_pickle=True)
+    train_test = data[data["set"].notnull()].reset_index() 
     uids = embeddings[:,0]
     
     
