@@ -10,6 +10,7 @@ from sklearn.neighbors import NearestNeighbors, BallTree
 from sklearn.decomposition import PCA, TruncatedSVD
 from tqdm import tqdm
 from glob import glob
+import matplotlib.pyplot as plt
 
 data_dir = '/scratch/students/schaerf/'
 
@@ -148,6 +149,17 @@ def remove_duplicates(metadata, morphograph):
 ##### Processing
 #########################################################
 
+
+def show_images(img_names):
+    f, axarr = plt.subplots(1,3, figsize=(20,10))
+    axarr = axarr.flatten()
+    for i,name in enumerate(img_names):
+        img = Image.open(name)
+        axarr[i].imshow(img) 
+        
+    plt.show()
+    
+        
 def preprocess_image(img_name, resolution=480):
     img = Image.open(img_name)
     tfms = transforms.Compose(

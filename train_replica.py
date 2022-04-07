@@ -27,7 +27,7 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
     best_model_wts = copy.deepcopy(model.state_dict())
 
     triplet_loss = nn.TripletMarginLoss(
-        margin=0.1, reduction='sum' # to be optimized margin
+        margin=0.2, reduction='sum' # to be optimized margin
     )
     
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-6) # to be optimized lr and method
@@ -51,13 +51,13 @@ def train_replica(model, loaders, dataset_sizes, device='cpu', data_dir='/scratc
     #np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
     
     noww= '06-04-2022_09:33:39'#'04-04-2022_19:55:56'
-    embeddings = np.load(data_dir + 'embeddings/' + model_name + '_epoch_0' + noww + '.npy', allow_pickle=True)
+    embeddings = np.load(data_dir + 'embeddings/' + model_name + '_epoch_none' + noww + '.npy', allow_pickle=True)
             
     train_test = data[data["set"].notnull()].reset_index() 
     
     scores.append(get_scores(embeddings, train_test, data))
             
-    make_training_set_orig(embeddings, train_test, data, data_dir, epoch=0)
+    make_training_set_orig(embeddings, train_test, data, data_dir, epoch=0, n=20)
     loaders['train'].__reload__(data_dir + 'dataset/abc_train_' + str(0) + '.csv')
     loaders['val'].__reload__(data_dir + 'dataset/abc_val_' + str(0) + '.csv')
     train_dataloaders = {x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True) for x in ["train", "val"]}

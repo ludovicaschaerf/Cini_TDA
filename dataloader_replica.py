@@ -42,6 +42,11 @@ class ReplicaDataset(Dataset):
 
         return sample
 
+    def __show_images__(self, idx):
+        show_images([self.replica_dir + self.data.loc[idx, "A_path"], 
+                    self.replica_dir + self.data.loc[idx, "B_path"], 
+                    self.replica_dir + self.data.loc[idx, "C_path"]])
+
     
     def __reload__(self, csv_file):
         #del self.data
