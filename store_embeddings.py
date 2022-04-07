@@ -5,6 +5,8 @@ from tqdm import tqdm
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
+import requests
+from io import BytesIO
 import numpy as np
 from metrics import * #recall_at_k, mean_average_precision
 from utils import * 
@@ -143,11 +145,14 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False, 
     print(final.shape)
     print(final.tail())
 
-    if epoch:
+    print(epoch)
+    if epoch is not False:
+        print(epoch)
         final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train_' + str(epoch) + '.csv')
         final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test_' + str(epoch) + '.csv')
         final[final['set'] == 'val'].reset_index().to_csv(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
     else:
+        print('why are you there?')
         final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train.csv')
         final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test.csv')
         final[final['set'] == 'val'].reset_index().to_csv(data_dir + 'dataset/abc_val.csv')
@@ -208,14 +213,21 @@ def show_suggestions(row, embeddings, train_test):
 
 
     f, axarr = plt.subplots(2,4, figsize=(30,10))
-    img_A = mpimg.imread(replica_dir + row["path"].values[0])
     axarr = axarr.flatten()
-    axarr[0].imshow(img_A)
+    drawer = row["path"].values[0].split('/')[0]
+    img = row["path"].values[0].split('_')[1].split('.')[0]
+    image_a = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+        
+    axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
     axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
     for i in range(len(sim)):
         axarr[i+1].set_title(str(i) + "th most similar image" + sim[i])
-        axarr[i+1].imshow(mpimg.imread(replica_dir + catch(sim[i])))
-    
+        drawer = catch(sim[i]).split('/')[0]
+        img = catch(sim[i]).split('_')[1].split('.')[0]
+        image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+        
+        axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
+        
     plt.show()
     return row["uid"].values[0], sim
     

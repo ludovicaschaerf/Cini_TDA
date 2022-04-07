@@ -42,6 +42,13 @@ class ReplicaDataset(Dataset):
 
         return sample
 
+    
+    def __reload__(self, csv_file):
+        #del self.data
+        self.data = pd.read_csv(csv_file)
+        print('reloaded data', self.data.shape)
+        
+    ## no longer in use
     def __get_simgle_item__(self, idx):
         
         img_1 = os.path.join(self.replica_dir + self.subset.loc[idx, "uid"])
@@ -50,11 +57,6 @@ class ReplicaDataset(Dataset):
         
         return uid, A
 
-    def __reload__(self, csv_file):
-        #del self.data
-        self.data = pd.read_csv(csv_file)
-        print('reloaded data', self.data.shape)
-        
     def __get_metadata__(self, idx):
         
         uid = self.data.loc[idx, "A"]
