@@ -5,7 +5,7 @@ from datetime import datetime
 import pickle
 import pandas as pd
 import numpy as np
-from store_embeddings import show_suggestions
+from store_embeddings import show_suggestions, make_tree_orig
 
 def get_data(data_dir='/scratch/students/schaerf/', size=1000):
     data = pd.read_csv(data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
@@ -13,9 +13,10 @@ def get_data(data_dir='/scratch/students/schaerf/', size=1000):
     embeddings = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
     print(embeddings.shape)
     embeddings = embeddings[np.isin(embeddings[:,0], list(data["uid"].unique()))]
-    return embeddings, data
+    tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
+    return embeddings, data, tree, reverse_map
 
-def main(data_dir='/scratch/students/schaerf/', embeddings=False, data=False, embds=False, size=1000):
+def main(data_dir='/scratch/students/schaerf/', embeddings=False, data=False, embds=False, tree=False, reverse_map=False, size=1000):
     
     with open(data_dir + 'annotation/morphograph_update.pkl', 'rb') as f:
         morpho_complete  = pickle.load(f)
@@ -23,12 +24,13 @@ def main(data_dir='/scratch/students/schaerf/', embeddings=False, data=False, em
     now = now.strftime("%d-%m-%Y_%H:%M:%S")
     
     if not embds:
-        embeddings, data = get_data(data_dir, size) #np.load(data_dir + 'embeddings/benoit.npy',allow_pickle=True)
+        embeddings, data, tree, reverse_map = get_data(data_dir, size) #np.load(data_dir + 'embeddings/benoit.npy',allow_pickle=True)
+    
     train_test = data[data["set"].notnull()].reset_index() 
     uids = embeddings[:,0]
     
-    
-    a, sim = show_suggestions(data.sample(), embeddings, train_test)
+    # data[data['uid'] == uid]
+    a, sim = show_suggestions(data.sample(), embeddings, train_test, tree, reverse_map)
     similars = input('which ones are VERY similar but NOT equal in pose? \n Write the numbers separated by commas')
     
     uids_sim = [sim[int(i.strip())] for i in similars.split(',') if i != '']

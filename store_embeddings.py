@@ -193,10 +193,9 @@ def show_similars(row, embeddings, train_test, data):
         display(Image2('/scratch/students/schaerf/subset/' + sim[i] + ".jpg", width=400, height=400))
    
 
-def show_suggestions(row, embeddings, train_test):
-    replica_dir = '/mnt/project_replica/datasets/cini/'
+def show_suggestions(row, embeddings, train_test, tree, reverse_map):
+    #replica_dir = '/mnt/project_replica/datasets/cini/'
 
-    tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
     
     if row["set"].values[0] in ['train', 'test']:
         list_theo = (
