@@ -92,6 +92,21 @@ def main(
         pickle.dump(update, f)
 
 
+def store_morph(uid_a, uid_sim, data_dir='/scratch/students/schaerf/annotation/'):
+    with open(data_dir + 'morphograph_update.pkl', 'rb') as f:
+        morpho_complete  = pickle.load(f)
+    now = datetime.now()
+    now = now.strftime("%d-%m-%Y_%H:%M:%S")
+    
+    
+    new_morphs = pd.DataFrame([[uid_a[:16]+uid_sim[i][16:], uid_a, uid_sim[i], 'POSITIVE', now] for i in range(len(uid_sim))], columns=['uid', 'img1', 'img2', 'type', 'annotated'])
+    update = pd.concat([morpho_complete, new_morphs], axis=0)
+    print(update.tail())
+    print(morpho_complete.shape, update.shape)
+    with open(data_dir + 'morphograph_update.pkl', 'wb') as f:
+        pickle.dump(update, f)
+    
+
 
 
 if __name__ == "__main__":
