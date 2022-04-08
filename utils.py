@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from tqdm import tqdm
 from glob import glob
 
-data_dir = '/scratch/students/schaerf/'
+data_dir = './data/'
 
 with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
     uid2path = pickle.load(outfile)
