@@ -3,6 +3,7 @@ from torch import nn
 from torchvision import models
 from scipy import sparse
         
+#https://github.com/filipradenovic/cnnimageretrieval-pytorch
 
 class ReplicaNet(torch.nn.Module):
     def __init__(self, model_name, device, pooling='avg'):
