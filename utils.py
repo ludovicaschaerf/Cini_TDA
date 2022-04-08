@@ -10,6 +10,7 @@ from sklearn.neighbors import NearestNeighbors, BallTree
 from sklearn.decomposition import PCA, TruncatedSVD
 from tqdm import tqdm
 from glob import glob
+import matplotlib.pyplot as plt
 
 data_dir = './data/'
 
@@ -20,6 +21,11 @@ with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
 #########################################################
 ##### Create embeddings
 #########################################################
+
+def cosine_distance():
+    ## TODO
+    return 'distant'
+
 
 def make_tree_orig(embeds, reverse_map = False):
     if reverse_map:
@@ -63,7 +69,7 @@ def find_pos_matches(uids_sim, uids_match, how='all'):
 def make_rank(uids_sim, uids_match):
     return [1 if uid in uids_match else 0 for uid in uids_sim]
 
-def catch(x):
+def catch(x, uid2path):
     try:
         return uid2path[x]
     except:
@@ -148,6 +154,17 @@ def remove_duplicates(metadata, morphograph):
 ##### Processing
 #########################################################
 
+
+def show_images(img_names):
+    f, axarr = plt.subplots(1,3, figsize=(20,10))
+    axarr = axarr.flatten()
+    for i,name in enumerate(img_names):
+        img = Image.open(name)
+        axarr[i].imshow(img) 
+        
+    plt.show()
+    
+        
 def preprocess_image(img_name, resolution=480):
     img = Image.open(img_name)
     tfms = transforms.Compose(
@@ -160,7 +177,7 @@ def preprocess_image(img_name, resolution=480):
             #        contrast=0.4,
             #        saturation=0.4
             #),
-            #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             
         ]
     )

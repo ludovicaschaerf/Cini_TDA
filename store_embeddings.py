@@ -112,7 +112,7 @@ def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=
 
     return mean_position, mean_min_position, mean_median_position, map, recall_400, recall_200, recall_100, recall_50, recall_20
 
-def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False, n=10):
+def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=False, n=10):
     tree = make_tree_orig(embeddings)
     Cs = []
     for i in tqdm(range(train_test.shape[0])):
@@ -137,9 +137,9 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, epoch=False, 
 
     final = train_test[['img1', 'img2', 'C', 'set']].explode('C')
     final.columns = ['A', 'B', 'C', 'set']
-    final['A_path'] = final['A'].apply(lambda x: catch(x))
-    final['B_path'] = final['B'].apply(lambda x: catch(x))
-    final['C_path'] = final['C'].apply(lambda x: catch(x))
+    final['A_path'] = final['A'].apply(lambda x: catch(x, uid2path))
+    final['B_path'] = final['B'].apply(lambda x: catch(x, uid2path))
+    final['C_path'] = final['C'].apply(lambda x: catch(x, uid2path))
     
     final = final[final['C_path'].notnull() & final['A_path'].notnull() & final['B_path'].notnull()]
     print(final.shape)
@@ -193,7 +193,7 @@ def show_similars(row, embeddings, train_test, data):
         display(Image2('/scratch/students/schaerf/subset/' + sim[i] + ".jpg", width=400, height=400))
    
 
-def show_suggestions(row, embeddings, train_test, tree, reverse_map):
+def show_suggestions(row, embeddings, train_test, tree, reverse_map, uid2path, ):
     #replica_dir = '/mnt/project_replica/datasets/cini/'
 
     
@@ -221,8 +221,8 @@ def show_suggestions(row, embeddings, train_test, tree, reverse_map):
     axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
     for i in range(len(sim)):
         axarr[i+1].set_title(str(i) + "th most similar image" + sim[i])
-        drawer = catch(sim[i]).split('/')[0]
-        img = catch(sim[i]).split('_')[1].split('.')[0]
+        drawer = catch(sim[i], uid2path).split('/')[0]
+        img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
         image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
         
         axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 

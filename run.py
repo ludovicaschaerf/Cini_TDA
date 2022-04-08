@@ -7,6 +7,7 @@ import torch
 torch.cuda.empty_cache()
 import gc
 gc.collect()
+import pickle
 
 import argparse
 from datetime import datetime
@@ -19,6 +20,9 @@ def main(data_dir='/scratch/students/schaerf/', replica_dir='/mnt/project_replic
     dts = {x: ReplicaDataset(data_dir + 'dataset/abc_' + x + '.csv', data_dir + 'subset.csv', replica_dir, data_dir, x, resolution) for x in ['train', 'val']}
     dataset_sizes = {x: len(dts[x]) for x in ["train", "val"]}
 
+    with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
+        uid2path = pickle.load(outfile)
+
     if device == 'cuda':
         device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu") # cuda requires batch size of 4
     else:
@@ -30,7 +34,7 @@ def main(data_dir='/scratch/students/schaerf/', replica_dir='/mnt/project_replic
     #    print("loaded from previously stored weights")
     #    model.load_state_dict(torch.load(data_dir + "models/model_weights_" + now + model_name))
 
-    model = train_replica(model, dts, dataset_sizes, device=device, data_dir=data_dir, replica_dir=replica_dir, num_epochs=num_epochs, model_name=model_name, resolution=resolution, batch_size=batch_size)
+    model = train_replica(model, dts, dataset_sizes, uid2path, device=device, data_dir=data_dir, replica_dir=replica_dir, num_epochs=num_epochs, model_name=model_name, resolution=resolution, batch_size=batch_size)
     torch.save(model.state_dict(), data_dir + "models/model_weights_" + now + model_name)
 
 
