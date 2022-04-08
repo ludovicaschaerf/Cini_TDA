@@ -29,6 +29,7 @@ def train_replica(
     model,
     loaders,
     dataset_sizes,
+    uid2path,
     device="cpu",
     data_dir="/scratch/students/schaerf/",
     replica_dir="/mnt/project_replica/datasets/cini/",
@@ -85,7 +86,7 @@ def train_replica(
 
     scores.append(get_scores(embeddings, train_test, data))
 
-    make_training_set_orig(embeddings, train_test, data, data_dir, epoch=100, n=20)
+    make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=100, n=20)
     loaders["train"].__reload__(data_dir + "dataset/abc_train_" + str(100) + ".csv")
     loaders["val"].__reload__(data_dir + "dataset/abc_val_" + str(100) + ".csv")
     train_dataloaders = {
@@ -181,7 +182,7 @@ def train_replica(
                 best_model_wts = copy.deepcopy(model.state_dict())
 
                 make_training_set_orig(
-                    embeddings, train_test, data, data_dir, epoch=epoch
+                    embeddings, train_test, data, data_dir, uid2path, epoch=epoch
                 )
                 loaders["train"].__reload__(
                     data_dir + "dataset/abc_train_" + str(epoch) + ".csv"

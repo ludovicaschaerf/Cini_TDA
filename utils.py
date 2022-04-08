@@ -22,6 +22,11 @@ with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
 ##### Create embeddings
 #########################################################
 
+def cosine_distance():
+    ## TODO
+    return 'distant'
+
+
 def make_tree_orig(embeds, reverse_map = False):
     if reverse_map:
         kdt = BallTree(np.vstack(embeds[:,1]), metric="euclidean")
@@ -64,7 +69,7 @@ def find_pos_matches(uids_sim, uids_match, how='all'):
 def make_rank(uids_sim, uids_match):
     return [1 if uid in uids_match else 0 for uid in uids_sim]
 
-def catch(x):
+def catch(x, uid2path):
     try:
         return uid2path[x]
     except:
