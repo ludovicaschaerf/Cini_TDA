@@ -50,10 +50,10 @@ def get_links(embeddings, data, tree, reverse_map, uid2path, uid=False, n=8):
     for i in range(len(sim)):
         drawer = catch(sim[i], uid2path).split('/')[0]
         img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
-        images.append(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+        images.append((sim[i], f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'))
         
     
-    return image_a, images
+    return (row["uid"].values[0], image_a), images
 
 def main(data_dir='/scratch/students/schaerf/', embeddings=False, data=False, embds=False, tree=False, reverse_map=False, size=1000):
     
