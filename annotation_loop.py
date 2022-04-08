@@ -66,7 +66,6 @@ def main(data_dir='/scratch/students/schaerf/', embeddings=False, data=False, em
         embeddings, data, tree, reverse_map, uid2path = setup(data_dir, size) #np.load(data_dir + 'embeddings/benoit.npy',allow_pickle=True)
     
     train_test = data[data["set"].notnull()].reset_index() 
-    uids = embeddings[:,0]
     
     # data[data['uid'] == uid]
     a, sim = show_suggestions(data.sample(), embeddings, train_test, tree, reverse_map, uid2path)
@@ -74,11 +73,10 @@ def main(data_dir='/scratch/students/schaerf/', embeddings=False, data=False, em
     
     uids_sim = [sim[int(i.strip())] for i in similars.split(',') if i != '']
     
-    morpho_graph = morpho_complete.loc[((morpho_complete.img1.isin(uids)) & (morpho_complete.img2.isin(uids))) ][['uid', 'img1', 'img2', 'type', 'annotated']]   
     new_morphs = pd.DataFrame([[a[:16]+uids_sim[i][16:], a, uids_sim[i], 'POSITIVE', now] for i in range(len(uids_sim))], columns=['uid', 'img1', 'img2', 'type', 'annotated'])
-    update = pd.concat([morpho_graph, new_morphs], axis=0)
+    update = pd.concat([morpho_complete, new_morphs], axis=0)
     print(update.tail())
-    print(morpho_graph.shape, update.shape)
+    print(morpho_complete.shape, update.shape)
     with open(data_dir + 'annotation/morphograph_update.pkl', 'wb') as f:
         pickle.dump(update, f)
     
