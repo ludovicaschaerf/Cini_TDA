@@ -7,8 +7,9 @@ import networkx as nx
 import numpy as np
 from sklearn.neighbors import NearestNeighbors, BallTree
 
-# import umap
+import umap
 from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.manifold import TSNE
 from tqdm import tqdm
 from glob import glob
 import matplotlib.pyplot as plt
@@ -214,6 +215,13 @@ def get_lower_dimension(embeddings, dimensions=100, method="umap"):
         embeddings_new = TruncatedSVD(n_components=dimensions).fit_transform(
             np.vstack(embeddings[:, 1])
         )
+    elif method == "tsne":
+        embeddings_new = TSNE(
+            n_components=dimensions
+        ).fit_transform(np.vstack(embeddings[:, 1]))
+    else:
+        print("unknow method")
+        embeddings_new = embeddings
 
     return embeddings_new
 

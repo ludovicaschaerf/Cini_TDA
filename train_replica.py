@@ -47,12 +47,12 @@ def train_replica(
     #)
 
     triplet_loss = nn.TripletMarginWithDistanceLoss(
-        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, reduction="mean"
+        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, reduction="sum"
     )
 
     # optimizer = torch.optim.Adam(model.parameters(), lr=1e-6) # to be optimized lr and method
     optimizer = torch.optim.Adagrad(
-        model.parameters(), lr=1e-5
+        model.parameters(), lr=1e-6
     )  # to be optimized lr and method
     scheduler = lr_scheduler.StepLR(
         optimizer, step_size=1, gamma=0.01
@@ -62,7 +62,7 @@ def train_replica(
     losses = []
     scores = []
 
-    data = pd.read_csv(data_dir + "dedup_data_sample.csv").drop(
+    data = pd.read_csv(data_dir + "dedup_data.csv").drop(
         columns=["Unnamed: 0", "level_0"]
     )
 
@@ -71,24 +71,23 @@ def train_replica(
     # embeddings = pqdm([(replica_dir, model.to('cpu'), path, resolution, 'fine_tune', 'cpu') for path in tqdm(data['path'].unique())], get_embedding_path, 30)
     # pool.close()
 
-    # embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    embeddings = np.array(embeddings, dtype=np.ndarray)
+    np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    # embeddings = np.array(embeddings, dtype=np.ndarray)
-    # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
-
-    noww = "06-04-2022_09:33:39"  #'04-04-2022_19:55:56'
-    embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
-        allow_pickle=True,
-    )
+    # noww = "06-04-2022_09:33:39"  #'04-04-2022_19:55:56'
+    # embeddings = np.load(
+    #    data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+    #    allow_pickle=True,
+    #)
 
     train_test = data[data["set"].notnull()].reset_index()
 
     scores.append(get_scores(embeddings, train_test, data))
 
-    make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=100, n=20)
-    loaders["train"].__reload__(data_dir + "dataset/abc_train_" + str(100) + ".csv")
-    loaders["val"].__reload__(data_dir + "dataset/abc_val_" + str(100) + ".csv")
+    make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=10, n=200)
+    loaders["train"].__reload__(data_dir + "dataset/abc_train_" + str(10) + ".csv")
+    loaders["val"].__reload__(data_dir + "dataset/abc_val_" + str(10) + ".csv")
     train_dataloaders = {
         x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True)
         for x in ["train", "val"]
