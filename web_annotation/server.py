@@ -34,6 +34,7 @@ def annotate_images():
     number_of_results = 0
     image_uid = ""
     compared_with_img_url = ""
+    info = ""
     if request.method == "POST":
         if request.form["submit"] in ["text_search", "random_search"]:
             if request.form["submit"] == "text_search":
@@ -45,7 +46,7 @@ def annotate_images():
                 embeddings, data, tree, reverse_map, uid2path, uid=image_uid, n=7
             )
 
-            image_uid, compared_with_img_url = compared_image
+            image_uid, compared_with_img_url, info = compared_image
 
             number_of_results = len(similar_images)
 
@@ -55,7 +56,7 @@ def annotate_images():
                 if "ckb" in form_key:
                     similar_imges_uids.append(request.form[form_key])
             store_morph(request.form["UID_A"],
-                        similar_imges_uids, data_dir="./data/")
+                        similar_imges_uids, data_dir=args.data_dir)
 
     return render_template(
         "annotate.html",
@@ -63,6 +64,7 @@ def annotate_images():
         uploaded_image_url=compared_with_img_url,
         number_of_results=number_of_results,
         item=image_uid,
+        info=info,
         cold_start=request.method == "GET",
     )
 

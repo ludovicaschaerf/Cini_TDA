@@ -45,15 +45,19 @@ def get_links(embeddings, data, tree, reverse_map, uid2path, uid=False, n=8):
     images = []
     drawer = row["path"].values[0].split('/')[0]
     img = row["path"].values[0].split('_')[1].split('.')[0]
+    info = row["AuthorOriginal"].values[0] + ' ' + row["Description"].values[0]
     image_a = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
         
     for i in range(len(sim)):
         drawer = catch(sim[i], uid2path).split('/')[0]
         img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
-        images.append((sim[i], f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'))
+        row_2 = data[data['uid'] == sim[i]]
+        info_2 = row_2["AuthorOriginal"].values[0] + ' ' + row_2["Description"].values[0]
+    
+        images.append((sim[i], f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/400,/0/default.jpg', info_2))
         
     
-    return (row["uid"].values[0], image_a), images
+    return (row["uid"].values[0], image_a, info), images
 
 
 def main(
