@@ -1,13 +1,23 @@
 import sys
 from flask import Flask, render_template, request
 from requests import get
-
+import argparse
 sys.path.insert(0, ".")
 
 from annotation_loop import get_links, setup, store_morph
 
+parser = argparse.ArgumentParser(description='Model specifics')
+parser.add_argument('--n_subset', dest='n_subset',
+                    type=int, help='', default=10000)
+parser.add_argument('--data_dir', dest='data_dir',
+                    type=str, help='', default="./data/")
+parser.add_argument('--path', dest='path',
+                    type=str, help='', default="./data/")
+
+args = parser.parse_args()
+
 embeddings, data, tree, reverse_map, uid2path = setup(
-    data_dir="./data/", path="./data/", size=10000
+    data_dir=args.data_dir, path=args.path, size=args.n_subset
 )
 
 app = Flask(__name__)
@@ -44,7 +54,8 @@ def annotate_images():
             for form_key in request.form.keys():
                 if "ckb" in form_key:
                     similar_imges_uids.append(request.form[form_key])
-            store_morph(request.form["UID_A"], similar_imges_uids, data_dir="./data/")
+            store_morph(request.form["UID_A"],
+                        similar_imges_uids, data_dir="./data/")
 
     return render_template(
         "annotate.html",
@@ -59,6 +70,7 @@ def annotate_images():
 if __name__ == "__main__":
 
     app.run(port=8080)
+
     # from waitress import serve
 
     # serve(app, host="0.0.0.0", port=8080)
