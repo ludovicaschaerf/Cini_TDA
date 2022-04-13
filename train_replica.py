@@ -62,7 +62,7 @@ def train_replica(
     losses = []
     scores = []
 
-    data = pd.read_csv(data_dir + "dedup_data.csv").drop(
+    data = pd.read_csv(data_dir + "dedup_data_sample.csv").drop(
         columns=["Unnamed: 0", "level_0"]
     )
 
@@ -71,27 +71,32 @@ def train_replica(
     # embeddings = pqdm([(replica_dir, model.to('cpu'), path, resolution, 'fine_tune', 'cpu') for path in tqdm(data['path'].unique())], get_embedding_path, 30)
     # pool.close()
 
-    embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
-    embeddings = np.array(embeddings, dtype=np.ndarray)
-    np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+    #embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    #embeddings = np.array(embeddings, dtype=np.ndarray)
+    #np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    # noww = "06-04-2022_09:33:39"  #'04-04-2022_19:55:56'
-    # embeddings = np.load(
-    #    data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
-    #    allow_pickle=True,
-    #)
+    noww = "06-04-2022_09:33:39"  #'04-04-2022_19:55:56'
+    embeddings = np.load(
+        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+        allow_pickle=True,
+    )
 
     train_test = data[data["set"].notnull()].reset_index()
 
     scores.append(get_scores(embeddings, train_test, data))
 
-    make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=10, n=200)
+    make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=10, n=20)
     loaders["train"].__reload__(data_dir + "dataset/abc_train_" + str(10) + ".csv")
     loaders["val"].__reload__(data_dir + "dataset/abc_val_" + str(10) + ".csv")
     train_dataloaders = {
         x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True)
         for x in ["train", "val"]
     }
+
+    for param in model.modules():
+        if isinstance(param, nn.BatchNorm2d):
+            param.requires_grad = False
+
 
     for epoch in range(num_epochs):
 
@@ -100,6 +105,11 @@ def train_replica(
 
         # Each epoch has a training and validation phase
         for phase in ["train", "val"]:  # , 'val'
+            
+            if phase == 'train':
+                model.train()  # Set model to training mode
+            else:
+                model.eval()   # Set model to evaluate mode
 
             running_loss = 0.0
 
@@ -116,10 +126,7 @@ def train_replica(
                 # track history if only in train
                 with torch.set_grad_enabled(phase == "train"):
 
-                    for param in model.modules():
-                        if isinstance(param, nn.BatchNorm2d):
-                            param.requires_grad = False
-
+                    
                     # Forward pass
                     A, B, C = model(a, b, c)
                     # Compute and print loss
