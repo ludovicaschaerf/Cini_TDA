@@ -78,6 +78,43 @@ def catch(x, uid2path):
         return np.nan
 
 
+
+def get_embedding(img, model, type="fine_tune", device="cpu"):
+    if type == "fine_tune":
+        embedding = model.predict(img.squeeze(1).to(device))[0].cpu().detach().numpy()
+        #print(embedding.shape)
+    else:
+        embedding = model(img.squeeze(1).to(device))[0].cpu().detach().numpy()
+        norm = np.linalg.norm(embedding)
+        embedding = embedding / norm
+    return embedding
+
+
+def get_lower_dimension(embeddings, dimensions=100, method="umap"):
+    if method == "umap":
+        embeddings_new = umap.UMAP(n_components=dimensions, metric="cosine").fit(
+            np.vstack(embeddings[:, 1])
+        )
+        embeddings_new = embeddings_new.embedding_
+    elif method == "pca":
+        embeddings_new = PCA(n_components=dimensions).fit_transform(
+            np.vstack(embeddings[:, 1])
+        )
+    elif method == "svd":
+        embeddings_new = TruncatedSVD(n_components=dimensions).fit_transform(
+            np.vstack(embeddings[:, 1])
+        )
+    elif method == "tsne":
+        embeddings_new = TSNE(
+            n_components=dimensions
+        ).fit_transform(np.vstack(embeddings[:, 1]))
+    else:
+        print("unknow method")
+        embeddings_new = embeddings
+
+    return embeddings_new
+
+
 #########################################################
 ##### Create train and test set
 #########################################################
@@ -189,42 +226,6 @@ def preprocess_image(img_name, resolution=480):
         ]
     )
     return tfms(img).unsqueeze(0)
-
-
-def get_embedding(img, model, type="fine_tune", device="cpu"):
-    if type == "fine_tune":
-        embedding = model.predict(img.squeeze(1).to(device))[0].cpu().detach().numpy()
-    else:
-        embedding = model(img.squeeze(1).to(device))[0].cpu().detach().numpy()
-        norm = np.linalg.norm(embedding)
-        embedding = embedding / norm
-    return embedding
-
-
-def get_lower_dimension(embeddings, dimensions=100, method="umap"):
-    if method == "umap":
-        embeddings_new = umap.UMAP(n_components=dimensions, metric="cosine").fit(
-            np.vstack(embeddings[:, 1])
-        )
-        embeddings_new = embeddings_new.embedding_
-    elif method == "pca":
-        embeddings_new = PCA(n_components=dimensions).fit_transform(
-            np.vstack(embeddings[:, 1])
-        )
-    elif method == "svd":
-        embeddings_new = TruncatedSVD(n_components=dimensions).fit_transform(
-            np.vstack(embeddings[:, 1])
-        )
-    elif method == "tsne":
-        embeddings_new = TSNE(
-            n_components=dimensions
-        ).fit_transform(np.vstack(embeddings[:, 1]))
-    else:
-        print("unknow method")
-        embeddings_new = embeddings
-
-    return embeddings_new
-
 
 #########################################################
 ##### Deprecated

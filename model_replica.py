@@ -30,16 +30,22 @@ class ReplicaNet(torch.nn.Module):
         elif model_name == "efficientnet7":
             model = models.efficientnet_b7(pretrained=True)
 
-        if pooling == "avg":
-            newmodel = torch.nn.Sequential(
-                *(list(model.children())[:-2]), nn.AdaptiveAvgPool2d((1, 1))
-            )
-        elif pooling == 'max':
-            newmodel = torch.nn.Sequential(
-                *(list(model.children())[:-2]), nn.AdaptiveMaxPool2d((1, 1), )
-            )
+        # if pooling == "avg":
+        #     newmodel = torch.nn.Sequential(
+        #         *(list(model.children())[:-2]), nn.AdaptiveAvgPool2d((1, 1))
+        #     )
+        # elif pooling == 'max':
+        #     newmodel = torch.nn.Sequential(
+        #         *(list(model.children())[:-2]), nn.AdaptiveMaxPool2d((1, 1), )
+        #     )
         
-        self.model = newmodel.to(device)
+        # self.model = newmodel.to(device)
+
+        #del model.fc
+        
+        model.fc = nn.Identity()
+        
+        self.model = model.to(device)
         
     def forward(self, a, b, c):
         

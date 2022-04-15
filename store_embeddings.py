@@ -67,7 +67,7 @@ def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=
         list_downloaded = list(train_test["img1"]) + list(train_test["img2"])
 
     for i in tqdm(range(train_test.shape[0])):
-        if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded) & (train_test["set"][i] == 'test'):
+        if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded) and (train_test["set"][i] == 'test'):
             list_theo = (
                 list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
                 + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])

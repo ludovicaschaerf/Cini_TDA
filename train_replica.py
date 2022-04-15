@@ -13,14 +13,6 @@ from store_embeddings import *
 from datetime import datetime
 import torch.nn.functional as F
 
-
-# Parallelizing with Pool.starmap()
-# import multiprocessing as mp
-# from pqdm.processes import pqdm
-
-# count = mp.cpu_count()
-# print(count)
-
 now = datetime.now()
 now = now.strftime("%d-%m-%Y_%H:%M:%S")
 
@@ -50,12 +42,13 @@ def train_replica(
         distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, reduction="sum"
     )
 
-    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-6) # to be optimized lr and method
-    optimizer = torch.optim.Adagrad(
+    # optimizer = torch.optim.Adagrad(model.parameters(), lr=1e-6) # to be optimized lr and method
+    
+    optimizer = torch.optim.Adam(
         model.parameters(), lr=1e-6
     )  # to be optimized lr and method
     scheduler = lr_scheduler.StepLR(
-        optimizer, step_size=1, gamma=0.01
+        optimizer, step_size=10, gamma=0.01
     )  # to be optimized step and gamma
 
     best_loss = 10000000
@@ -66,18 +59,13 @@ def train_replica(
         columns=["Unnamed: 0", "level_0"]
     )
 
-    # pool = mp.Pool(count - 15)
-    # embeddings = pool.starmap(get_embedding_path, [(replica_dir, model.to('cpu'), path, resolution, 'fine_tune', 'cpu') for path in tqdm(data['path'].unique())])
-    # embeddings = pqdm([(replica_dir, model.to('cpu'), path, resolution, 'fine_tune', 'cpu') for path in tqdm(data['path'].unique())], get_embedding_path, 30)
-    # pool.close()
-
-    #embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device).squeeze(1).squeeze(1)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    #embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
     #embeddings = np.array(embeddings, dtype=np.ndarray)
     #np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    noww = "06-04-2022_09:33:39"  #'04-04-2022_19:55:56'
+    noww = '14-04-2022_23:25:29' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56'
     embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+        data_dir + "embeddings/" + model_name + "_epoch_3" + noww + ".npy",
         allow_pickle=True,
     )
 
@@ -149,9 +137,6 @@ def train_replica(
             print("{} Loss: {:.4f}".format(phase, epoch_loss))
 
             if phase == "val":
-                # pool = mp.Pool(count - 15)
-                # embeddings = pool.starmap(get_embedding_path, [(replica_dir, model.to('cpu'), path, resolution, 'fine_tune', 'cpu') for path in tqdm(data['path'].unique())])
-                # pool.close()
                 embeddings = [
                     [
                         uid,
@@ -159,9 +144,7 @@ def train_replica(
                             preprocess_image(replica_dir + path, resolution=resolution),
                             model,
                             device=device,
-                        )
-                        .squeeze(1)
-                        .squeeze(1),
+                        ),
                     ]
                     for uid, path in tqdm(
                         zip(data["uid"].unique(), data["path"].unique())
@@ -179,10 +162,12 @@ def train_replica(
                     embeddings,
                 )
 
+                old_score = scores[-1][-1]
                 scores.append(get_scores(embeddings, train_test, data))
+                print('boh', scores[-1][-1])
 
             # deep copy the model
-            if phase == "val" and epoch_loss < best_loss:  # needs to be changed to val
+            if phase == "val" and (epoch_loss < best_loss or scores[-1][-1] < old_score):  # needs to be changed to val
                 print("Model updating! Best loss so far")
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())

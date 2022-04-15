@@ -30,9 +30,10 @@ def main(data_dir='/scratch/students/schaerf/', replica_dir='/mnt/project_replic
     
     model = ReplicaNet(model_name, device)
 
-    #if data_dir + "models/model_weights_" + model_name in glob(data_dir + "models/*"):
-    #    print("loaded from previously stored weights")
-    #    model.load_state_dict(torch.load(data_dir + "models/model_weights_" + now + model_name))
+    noww = '14-04-2022_23:25:30'
+    if data_dir + "models/model_weights_" + noww + model_name in glob(data_dir + "models/*"):
+        print("loaded from previously stored weights")
+        model.load_state_dict(torch.load(data_dir + "models/model_weights_" + noww + model_name))
 
     model = train_replica(model, dts, dataset_sizes, uid2path, device=device, data_dir=data_dir, replica_dir=replica_dir, num_epochs=num_epochs, model_name=model_name, resolution=resolution, batch_size=batch_size)
     torch.save(model.state_dict(), data_dir + "models/model_weights_" + now + model_name)
