@@ -9,6 +9,8 @@ from annotation_loop import get_links, setup, store_morph
 parser = argparse.ArgumentParser(description='Model specifics')
 parser.add_argument('--n_subset', dest='n_subset',
                     type=int, help='', default=10000)
+parser.add_argument('--n_show', dest='n_show',
+                    type=int, help='', default=10)
 parser.add_argument('--data_dir', dest='data_dir',
                     type=str, help='', default="./data/")
 parser.add_argument('--path', dest='path',
@@ -43,7 +45,7 @@ def annotate_images():
                 image_uid = False
 
             compared_image, similar_images = get_links(
-                embeddings, data, tree, reverse_map, uid2path, uid=image_uid, n=7
+                embeddings, data, tree, reverse_map, uid2path, uid=image_uid, n=args.n_show + 1
             )
 
             image_uid, compared_with_img_url, info = compared_image
