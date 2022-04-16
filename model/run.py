@@ -20,7 +20,7 @@ now = now.strftime("%d-%m-%Y_%H:%M:%S")
 print(now)
 
 def main(data_dir='/scratch/students/schaerf/', replica_dir='/mnt/project_replica/datasets/cini/', batch_size=8, num_epochs=1, model_name='resnext-101', device='cuda', resolution=480):
-    dts = {x: ReplicaDataset(data_dir + 'dataset/abc_' + x + '.csv', data_dir + 'subset.csv', replica_dir, data_dir, x, resolution) for x in ['train', 'val']}
+    dts = {x: ReplicaDataset(data_dir + 'dataset/abc_' + x + '.csv', data_dir + 'deprecated/subset.csv', replica_dir, data_dir, x, resolution) for x in ['train', 'val']}
     dataset_sizes = {x: len(dts[x]) for x in ["train", "val"]}
 
     with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
@@ -33,10 +33,10 @@ def main(data_dir='/scratch/students/schaerf/', replica_dir='/mnt/project_replic
     
     model = ReplicaNet(model_name, device)
 
-    noww = '14-04-2022_23:25:30'
-    if data_dir + "models/model_weights_" + noww + model_name in glob(data_dir + "models/*"):
-        print("loaded from previously stored weights")
-        model.load_state_dict(torch.load(data_dir + "models/model_weights_" + noww + model_name))
+    #noww = '14-04-2022_23:25:30'
+    #if data_dir + "models/model_weights_" + noww + model_name in glob(data_dir + "models/*"):
+    #    print("loaded from previously stored weights")
+    #    model.load_state_dict(torch.load(data_dir + "models/model_weights_" + noww + model_name))
 
     model = train_replica(model, dts, dataset_sizes, uid2path, device=device, data_dir=data_dir, replica_dir=replica_dir, num_epochs=num_epochs, model_name=model_name, resolution=resolution, batch_size=batch_size)
     torch.save(model.state_dict(), data_dir + "models/model_weights_" + now + model_name)

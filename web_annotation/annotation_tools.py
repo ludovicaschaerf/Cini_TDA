@@ -1,12 +1,14 @@
 #!/usr/bin/python
-from glob import glob
 import argparse
 from datetime import datetime
 import pickle
 import pandas as pd
 import numpy as np
-from store_embeddings import show_suggestions, make_tree_orig, find_most_similar_no_theo
-from utils import catch
+import sys
+
+sys.path.insert(0, "../model/")
+
+from utils import show_suggestions, make_tree_orig, find_most_similar_no_theo, catch
 
 def setup(data_dir='/scratch/students/schaerf/', path='/home/guhennec/scratch/2021_Cini/TopologicalAnalysis_Cini/data/', size=1000):
     data = pd.read_csv(data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
@@ -83,6 +85,7 @@ def main(
     embds=False,
     tree=False,
     reverse_map=False,
+    uid2path=False,
     size=1000,
 ):
 

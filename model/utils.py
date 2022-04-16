@@ -227,11 +227,24 @@ def preprocess_image(img_name, resolution=480):
             transforms.ToTensor(),
             # transforms.RandomResizedCrop((resolution, resolution), ),
             transforms.Resize((resolution, resolution)),
-            # transforms.ColorJitter(
-            #        brightness=0.4,
-            #        contrast=0.4,
-            #        saturation=0.4
-            # ),
+            transforms.ColorJitter(
+                   brightness=0.1,
+                   contrast=0.1,
+                   saturation=0.1
+            ),
+            transforms.RandomHorizontalFlip(p=0.1),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+    return tfms(img).unsqueeze(0)
+
+def preprocess_image_test(img_name, resolution=480):
+    img = Image.open(img_name)
+    tfms = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            # transforms.RandomResizedCrop((resolution, resolution), ),
+            transforms.Resize((resolution, resolution)),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )

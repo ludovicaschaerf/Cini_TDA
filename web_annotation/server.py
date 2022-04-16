@@ -1,9 +1,6 @@
-import sys
 from flask import Flask, render_template, request
-from requests import get
 import argparse
 
-#sys.path.insert(0, ".")
 from annotation_tools import get_links, setup, store_morph
 
 parser = argparse.ArgumentParser(description='Model specifics')

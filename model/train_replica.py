@@ -61,13 +61,13 @@ def train_replica(
         columns=["Unnamed: 0", "level_0"]
     )
 
-    #embeddings = [[uid, get_embedding(preprocess_image(replica_dir + path, resolution=resolution), model, device=device)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    #embeddings = [[uid, get_embedding(preprocess_image_test(replica_dir + path, resolution=resolution), model, device=device)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
     #embeddings = np.array(embeddings, dtype=np.ndarray)
     #np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    noww = '14-04-2022_23:25:29' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56'
+    noww = '14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
     embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_3" + noww + ".npy",
+        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
         allow_pickle=True,
     )
 
@@ -143,7 +143,7 @@ def train_replica(
                     [
                         uid,
                         get_embedding(
-                            preprocess_image(replica_dir + path, resolution=resolution),
+                            preprocess_image_test(replica_dir + path, resolution=resolution),
                             model,
                             device=device,
                         ),
@@ -175,7 +175,7 @@ def train_replica(
                 best_model_wts = copy.deepcopy(model.state_dict())
 
                 make_training_set_orig(
-                    embeddings, train_test, data, data_dir, uid2path, epoch=epoch
+                    embeddings, train_test, data, data_dir, uid2path, epoch=epoch, n=20
                 )
                 loaders["train"].__reload__(
                     data_dir + "dataset/abc_train_" + str(epoch) + ".csv"
