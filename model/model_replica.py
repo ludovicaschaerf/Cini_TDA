@@ -31,23 +31,22 @@ class ReplicaNet(torch.nn.Module):
         elif model_name == "efficientnet7":
             model = models.efficientnet_b7(pretrained=True)
 
-        # currently no pooling option
-        # if pooling == "avg":
-        #     newmodel = torch.nn.Sequential(
-        #         *(list(model.children())[:-2]), nn.AdaptiveAvgPool2d((1, 1))
-        #     )
-        # elif pooling == 'max':
-        #     newmodel = torch.nn.Sequential(
-        #         *(list(model.children())[:-2]), nn.AdaptiveMaxPool2d((1, 1), )
-        #     )
-        
-        # self.model = newmodel.to(device)
-
-        #del model.fc
         
         model.fc = nn.Identity()
         
+        self.non_pooled = torch.nn.Sequential(
+                *(list(model.children())[:-2])
+                ).to(device)
+        
+        if pooling == "avg":
+            self.pool = nn.AdaptiveAvgPool2d((1, 1)).to(device)
+        elif pooling == 'max':
+            self.pool = nn.AdaptiveMaxPool2d((1, 1)).to(device)
+        
+        self.fc = model.fc.to(device)
+
         self.model = model.to(device)
+
         
     def forward(self, a, b, c):
         
@@ -60,6 +59,27 @@ class ReplicaNet(torch.nn.Module):
         c_norm = torch.div(c_emb, torch.linalg.vector_norm(c_emb))
         
         return a_norm, b_norm, c_norm
+
+    def non_pooled_forward(self, a, b, c):
+
+        a_np = self.non_pooled(a)
+        b_np = self.non_pooled(b)
+        c_np = self.non_pooled(c)
+        
+        a_p = self.pool(a_np)
+        b_p = self.pool(b_np)
+        c_p = self.pool(c_np)
+        
+        a_emb = self.fc(a_p)
+        b_emb = self.fc(b_p)
+        c_emb = self.fc(c_p)
+
+        a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
+        b_norm = torch.div(b_emb, torch.linalg.vector_norm(b_emb))
+        c_norm = torch.div(c_emb, torch.linalg.vector_norm(c_emb))
+        
+
+        return a_np, b_np, c_np, a_norm, b_norm, c_norm
 
     def size(self, a):
         size = a.size()[1:]  # all dimensions except the batch dimension
