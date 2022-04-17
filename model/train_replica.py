@@ -169,7 +169,7 @@ def train_replica(
                 print('boh', scores[-1][-1])
 
             # deep copy the model
-            if phase == "val" and (epoch_loss < best_loss or scores[-1][-1] < old_score):  # needs to be changed to val
+            if phase == "val" and (epoch_loss < best_loss or scores[-1][-1] > old_score):  # needs to be changed to val
                 print("Model updating! Best loss so far")
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
