@@ -30,6 +30,7 @@ def train_replica(
     model_name="resnext-101",
     resolution=360,
     num_epochs=20,
+    num_c=10,
     batch_size=8,
 ):
 
@@ -75,7 +76,7 @@ def train_replica(
 
     scores.append(get_scores(embeddings, train_test, data))
 
-    make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=10, n=20)
+    make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=10, n=num_c)
     loaders["train"].__reload__(data_dir + "dataset/abc_train_" + str(10) + ".csv")
     loaders["val"].__reload__(data_dir + "dataset/abc_val_" + str(10) + ".csv")
     train_dataloaders = {
@@ -175,7 +176,7 @@ def train_replica(
                 best_model_wts = copy.deepcopy(model.state_dict())
 
                 make_training_set_orig(
-                    embeddings, train_test, data, data_dir, uid2path, epoch=epoch, n=20
+                    embeddings, train_test, data, data_dir, uid2path, epoch=epoch, n=num_c
                 )
                 loaders["train"].__reload__(
                     data_dir + "dataset/abc_train_" + str(epoch) + ".csv"
