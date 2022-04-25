@@ -96,7 +96,7 @@ def main(
         embeddings, data, tree, reverse_map, uid2path = setup(data_dir, size) #np.load(data_dir + 'embeddings/benoit.npy',allow_pickle=True)
     
     train_test = data[data["set"].notnull()].reset_index() 
-    a, sim = show_suggestions(data.sample(), embeddings, train_test, tree, reverse_map, uid2path)
+    a, sim = show_suggestions(data.sample(), embeddings, train_test, tree, reverse_map, uid2path, data)
     similars = input('which ones are VERY similar but NOT equal in pose? \n Write the numbers separated by commas')
     
     uids_sim = [sim[int(i.strip())] for i in similars.split(',') if i != '']

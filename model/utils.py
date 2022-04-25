@@ -14,15 +14,13 @@ import torch
 import torchvision.transforms as transforms
 
 from tqdm import tqdm
-from glob import glob
 import requests
 from io import BytesIO
 
 from metrics import recall_at_k, mean_average_precision
-from IPython.display import Image as Image2
-from IPython.display import display
 from PIL import Image
 
+from spatial_reranking import rerank_spatial
 
 
 #########################################################
@@ -89,25 +87,25 @@ def find_most_similar_no_theo(uid, tree, embeds, uids, list_theo, n=401):
 ##### Retrieval
 #########################################################
 
-def find_pos_matches(uids_sim, uids_match, how="all"):
+def find_pos_matches(uids_sim, uids_match, how="all", n=400):
     matched = list(filter(lambda i: uids_sim[i] in uids_match, range(len(uids_sim))))
     while len(matched) < len(uids_match):
-        matched.append(400)
+        matched.append(n)
     if how == "all":
         if len(matched) > 0:
             return matched
         else:
-            return [400]
+            return [n]
     elif how == "first":
         if len(matched) > 0:
             return matched[0]
         else:
-            return 400
+            return n
     elif how == "median":
         if len(matched) > 0:
             return np.median(np.array(matched))
         else:
-            return 400
+            return n
 
 
 def make_rank(uids_sim, uids_match):
@@ -154,6 +152,7 @@ def get_train_test_split(metadata, morphograph):
         axis=0,
     ).reset_index()
 
+    print(positives.shape)
     # adding set specification to df
     mapper = {it: number for number, nodes in enumerate(components) for it in nodes}
     positives["cluster"] = positives["uid"].apply(lambda x: mapper[x])
@@ -414,43 +413,95 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
 #########################################################
 
 
-def show_similars(row, embeddings, train_test, data):
+def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data):
     
-    tree = make_tree_orig(embeddings)
-    
-    list_theo = (
-        list(train_test[train_test["img1"] == row["uid"].values[0]]["img2"])
-        + list(train_test[train_test["img2"] == row["uid"].values[0]]["img1"])
-        #+ [row["uid"].values[0]]
-    )
-
-    theo = list(set(list_theo))[0]
-            
-    sim = find_most_similar_orig(
-        row["uid"].values[0], tree, embeddings, list(data["uid"].unique()), n=4
-    )
-
-    print("reference image", row["uid"].values[0], row["AuthorOriginal"].values[0], row["Description"].values[0])
-    display(
-        Image2('/scratch/students/schaerf/subset/' + row["uid"].values[0] + ".jpg", width=400, height=400)
-    )
-
-    print("actual most similar image", theo)
-    display(
-        Image2(
-            '/scratch/students/schaerf/subset/' + theo + ".jpg", width=400, height=400
+    if row["set"].values[0] in ['train', 'val', 'test']:
+        list_theo = (
+            list(train_test[train_test["img1"] == row["uid"].values[0]]["img2"])
+            + list(train_test[train_test["img2"] == row["uid"].values[0]]["img1"])
+            + [row["uid"].values[0]]
         )
+    else:
+        #list_theo = [row["uid"].values[0]]
+        raise Exception('File not in grountruth')
+        
+    sim = find_most_similar_orig(
+        row["uid"].values[0], tree, embeddings, reverse_map, n=50+1
     )
-    
-    for i in range(len(sim)):
-        print(i+1, "th most similar image according to model", sim[i])
-        display(Image2('/scratch/students/schaerf/subset/' + sim[i] + ".jpg", width=400, height=400))
-   
 
-def show_suggestions(row, embeddings, train_test, tree, reverse_map, uid2path, ):
+    print('positions of matches', find_pos_matches(sim, list_theo, n=50))
+
+    f, axarr = plt.subplots(2,4, figsize=(30,10))
+    axarr = axarr.flatten()
+    drawer = row["path"].values[0].split('/')[0]
+    img = row["path"].values[0].split('_')[1].split('.')[0]
+    image_a = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+        
+    axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
+    axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
+    for i in range(len(sim[:7])):
+        if sim[i] in list_theo:
+            correct = 'CORRECT'
+        else:
+            correct = 'WRONG'
+
+        row_2 = data[data['uid'] == sim[i]]
+        info_2 = row_2["AuthorOriginal"].values[0] + ' ' + row_2["Description"].values[0]
+    
+        axarr[i+1].set_title(info_2 + ' ' + correct)
+        drawer = catch(sim[i], uid2path).split('/')[0]
+        img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
+        image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+        
+        axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
+        
+    plt.show()
+
+    sim_rerank = rerank_spatial(row["uid"].values[0], sim, uid2path)
+    print('positions of matches after reranking', find_pos_matches(sim_rerank, list_theo, n=50))
+
+
+    axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
+    axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
+    for i in range(len(sim_rerank[:7])):
+        if sim[i] in list_theo:
+            correct = 'CORRECT'
+        else:
+            correct = 'WRONG'
+
+        row_2 = data[data['uid'] == sim[i]]
+        info_2 = row_2["AuthorOriginal"].values[0] + ' ' + row_2["Description"].values[0]
+    
+        axarr[i+1].set_title(info_2 + "(rerank) " + ' ' + correct)
+        drawer = catch(sim[i], uid2path).split('/')[0]
+        img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
+        image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+        
+        axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
+        
+    plt.show()
+
+    f, axarr = plt.subplots(1,len(list_theo), figsize=(30,5))
+    for i in range(len(list_theo)):
+        axarr[i].set_title(str(i) + "th groudtruth image")
+        corresp = catch(list_theo[i], uid2path)
+        if type(corresp) == str:
+            drawer = catch(list_theo[i], uid2path).split('/')[0]
+            img = catch(list_theo[i], uid2path).split('_')[1].split('.')[0]
+            image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+        
+            axarr[i].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
+        
+    plt.show()
+
+
+
+    return sim[:20], sim_rerank[:20]
+
+def show_suggestions(row, embeddings, train_test, tree, reverse_map, uid2path, data):
     #replica_dir = '/mnt/project_replica/datasets/cini/'
 
-    if row["set"].values[0] in ['train', 'test']:
+    if row["set"].values[0] in ['train', 'val', 'test']:
         list_theo = (
             list(train_test[train_test["img1"] == row["uid"].values[0]]["img2"])
             + list(train_test[train_test["img2"] == row["uid"].values[0]]["img1"])
@@ -473,7 +524,9 @@ def show_suggestions(row, embeddings, train_test, tree, reverse_map, uid2path, )
     axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
     axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
     for i in range(len(sim)):
-        axarr[i+1].set_title(str(i) + "th most similar image" + sim[i])
+        row_2 = data[data['uid'] == sim[i]]
+        info_2 = row_2["AuthorOriginal"].values[0] + ' ' + row_2["Description"].values[0]
+        axarr[i+1].set_title(info_2)
         drawer = catch(sim[i], uid2path).split('/')[0]
         img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
         image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')

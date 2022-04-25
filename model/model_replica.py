@@ -92,3 +92,7 @@ class ReplicaNet(torch.nn.Module):
         a_emb = self.model(a)
         a_norm = torch.div(a_emb, torch.linalg.vector_norm(a_emb))
         return a_norm
+
+    def predict_non_pooled(self, a):
+        a_np = self.non_pooled(a)
+        return a_np
