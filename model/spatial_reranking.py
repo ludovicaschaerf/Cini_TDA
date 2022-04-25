@@ -2,19 +2,39 @@ from model_replica import ReplicaNet
 import numpy as np
 from time import time
 from tqdm import tqdm
-from utils import preprocess_image, catch
+import torchvision.transforms as transforms
+from PIL import Image
 import multiprocessing as mp
     
+def preprocess_image_test(img_name, resolution=480):
+    img = Image.open(img_name)
+    tfms = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            # transforms.RandomResizedCrop((resolution, resolution), ),
+            transforms.Resize((resolution, resolution)),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+    return tfms(img).unsqueeze(0)
+
+
+def catch(x, uid2path):
+    try:
+        return uid2path[x]
+    except:
+        return np.nan
+
 
 def rerank_spatial(uid, sims, uid2path):
     model = ReplicaNet('resnext-101', 'cpu')
     replica_dir = '/mnt/project_replica/datasets/cini/'
-    A = preprocess_image(replica_dir + catch(uid, uid2path), 320)
+    A = preprocess_image_test(replica_dir + catch(uid, uid2path), 320)
     pool_A = model.predict_non_pooled(A)
     pool_A = np.moveaxis(pool_A.squeeze(0).cpu().detach().numpy(), 0, -1)
     
     print(pool_A.shape)
-    Cs = [preprocess_image(replica_dir + catch(uid, uid2path), 320) for uid in tqdm(sims)]
+    Cs = [preprocess_image_test(replica_dir + catch(uid, uid2path), 320) for uid in tqdm(sims)]
     pool_Cs = [model.predict_non_pooled(C) for C in tqdm(Cs)]
     
     print(pool_Cs[0].shape)
@@ -24,8 +44,9 @@ def rerank_spatial(uid, sims, uid2path):
     #pool.close()
     
     ranks = [match_feature_maps_simple(pool_A, np.moveaxis(pool_c.squeeze(0).cpu().detach().numpy(), 0, -1)) for pool_c in tqdm(pool_Cs)]
-    print(ranks)
-    sims_rerank = sims[np.argsort(ranks)]
+    sort_arr = np.argsort(ranks)
+    rev_arr = np.flipud(sort_arr) 
+    sims_rerank = np.array(sims)[rev_arr]
     return sims_rerank
 
 class Timer:

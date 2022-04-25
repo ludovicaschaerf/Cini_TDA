@@ -446,7 +446,7 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
             correct = 'WRONG'
 
         row_2 = data[data['uid'] == sim[i]]
-        info_2 = row_2["AuthorOriginal"].values[0] + ' ' + row_2["Description"].values[0]
+        info_2 = str(row_2["AuthorOriginal"].values[0]) + ' ' + str(row_2["Description"].values[0])
     
         axarr[i+1].set_title(info_2 + ' ' + correct)
         drawer = catch(sim[i], uid2path).split('/')[0]
@@ -460,7 +460,8 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
     sim_rerank = rerank_spatial(row["uid"].values[0], sim, uid2path)
     print('positions of matches after reranking', find_pos_matches(sim_rerank, list_theo, n=50))
 
-
+    f, axarr = plt.subplots(2,4, figsize=(30,10))
+    axarr = axarr.flatten()
     axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
     axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
     for i in range(len(sim_rerank[:7])):
@@ -469,12 +470,12 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
         else:
             correct = 'WRONG'
 
-        row_2 = data[data['uid'] == sim[i]]
-        info_2 = row_2["AuthorOriginal"].values[0] + ' ' + row_2["Description"].values[0]
+        row_2 = data[data['uid'] == sim_rerank[i]]
+        info_2 = str(row_2["AuthorOriginal"].values[0]) + ' ' + str(row_2["Description"].values[0])
     
         axarr[i+1].set_title(info_2 + "(rerank) " + ' ' + correct)
-        drawer = catch(sim[i], uid2path).split('/')[0]
-        img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
+        drawer = catch(sim_rerank[i], uid2path).split('/')[0]
+        img = catch(sim_rerank[i], uid2path).split('_')[1].split('.')[0]
         image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
         
         axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
