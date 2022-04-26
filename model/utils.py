@@ -431,7 +431,7 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
 
     print('positions of matches', find_pos_matches(sim, list_theo, n=50))
 
-    f, axarr = plt.subplots(2,4, figsize=(30,10))
+    f, axarr = plt.subplots(3,4, figsize=(30,15))
     axarr = axarr.flatten()
     drawer = row["path"].values[0].split('/')[0]
     img = row["path"].values[0].split('_')[1].split('.')[0]
@@ -439,14 +439,14 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
         
     axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
     axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
-    for i in range(len(sim[:7])):
+    for i in range(len(sim[:11])):
         if sim[i] in list_theo:
             correct = 'CORRECT'
         else:
             correct = 'WRONG'
 
         row_2 = data[data['uid'] == sim[i]]
-        info_2 = str(row_2["AuthorOriginal"].values[0]) + ' ' + str(row_2["Description"].values[0])
+        info_2 = str(row_2["AuthorOriginal"].values[0]) + '\n ' + str(row_2["Description"].values[0])
     
         axarr[i+1].set_title(info_2 + ' ' + correct)
         drawer = catch(sim[i], uid2path).split('/')[0]
@@ -455,16 +455,17 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
         
         axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
         
+    plt.savefig('/scratch/students/schaerf/figures/' + row["uid"].values[0] + '.jpg')
     plt.show()
-
+    
     sim_rerank = rerank_spatial(row["uid"].values[0], sim, uid2path)
     print('positions of matches after reranking', find_pos_matches(sim_rerank, list_theo, n=50))
 
-    f, axarr = plt.subplots(2,4, figsize=(30,10))
+    f, axarr = plt.subplots(3,4, figsize=(30,15))
     axarr = axarr.flatten()
     axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
-    axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
-    for i in range(len(sim_rerank[:7])):
+    axarr[0].set_title(row["AuthorOriginal"].values[0] + '\n ' + row["Description"].values[0])
+    for i in range(len(sim_rerank[:11])):
         if sim[i] in list_theo:
             correct = 'CORRECT'
         else:
@@ -480,9 +481,10 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
         
         axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
         
+    plt.savefig('/scratch/students/schaerf/figures/' + row["uid"].values[0] + '_rerank.jpg')
     plt.show()
-
-    f, axarr = plt.subplots(1,len(list_theo), figsize=(30,5))
+    
+    f, axarr = plt.subplots(1,len(list_theo), figsize=(30,3))
     for i in range(len(list_theo)):
         axarr[i].set_title(str(i) + "th groudtruth image")
         corresp = catch(list_theo[i], uid2path)

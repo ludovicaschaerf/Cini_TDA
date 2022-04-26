@@ -4,7 +4,7 @@ from time import time
 from tqdm import tqdm
 import torchvision.transforms as transforms
 from PIL import Image
-import multiprocessing as mp
+from multiprocessing import Pool
     
 def preprocess_image_test(img_name, resolution=480):
     img = Image.open(img_name)
@@ -48,6 +48,32 @@ def rerank_spatial(uid, sims, uid2path):
     rev_arr = np.flipud(sort_arr) 
     sims_rerank = np.array(sims)[rev_arr]
     return sims_rerank
+
+def sim_matrix_rerank(embeds):
+    sim_matrix = np.empty((embeds.shape[0], embeds.shape[0]))
+    print(sim_matrix.shape)
+    for i in tqdm(range(embeds.shape[0])):
+        for j in range(embeds.shape[0] // 2):
+            sim_matrix[i, j] = match_feature_maps_simple(embeds[i, 1], embeds[j, 1])
+    
+    index = embeds[0, :]
+    return sim_matrix, index
+
+
+def process_row(x):
+    output = np.empty_like(values)
+    for i, y in enumerate(values):
+        output[i] = match_feature_maps_simple(x, y)
+    return output
+
+
+def sim_matrix_rerank_parallel(embeds):
+    values = np.vstack(embeds[1, :])
+    with Pool() as pool:
+        sim_matrix = np.array(pool.map(process_row, values))
+    index = embeds[0, :]
+    return sim_matrix, index
+
 
 class Timer:
 
