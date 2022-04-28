@@ -62,7 +62,7 @@ def train_replica(
         columns=["Unnamed: 0", "level_0"]
     )
 
-    #embeddings = [[uid, get_embedding(preprocess_image_test(replica_dir + path, resolution=resolution), model, device=device)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    #embeddings = [[uid, get_embedding(preprocess_image_test(replica_dir + path, resolution=resolution), model, device=device,)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
     #embeddings = np.array(embeddings, dtype=np.ndarray)
     #np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 

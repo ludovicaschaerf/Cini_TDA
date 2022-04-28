@@ -72,10 +72,15 @@ def make_tree_orig(embeds, reverse_map=False):
         return kdt
 
 
-def find_most_similar_orig(uid, tree, embeds, uids, n=401):
+def find_most_similar_orig(uid, tree, embeds, uids, n=401, similarities=False):
     img = np.vstack(embeds[embeds[:, 0] == uid][:, 1]).reshape(1, -1)
-    cv = tree.query(img, k=n)[1][0]
-    return [uids[c] for c in cv if uids[c] != uid]
+    cv_all = tree.query(img, k=n)#[1][0]
+    cv = cv_all[1][0]
+    if similarities:
+        similarities = cv_all[0][0]
+        return [uids[c] for c in cv if uids[c] != uid], similarities[1:]
+    else:
+        return [uids[c] for c in cv if uids[c] != uid]
 
 
 def find_most_similar_no_theo(uid, tree, embeds, uids, list_theo, n=401):
@@ -425,20 +430,23 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
         #list_theo = [row["uid"].values[0]]
         raise Exception('File not in grountruth')
         
-    sim = find_most_similar_orig(
-        row["uid"].values[0], tree, embeddings, reverse_map, n=50+1
+    sim, similarities = find_most_similar_orig(
+        row["uid"].values[0], tree, embeddings, reverse_map, n=50+1, similarities=True
     )
 
     print('positions of matches', find_pos_matches(sim, list_theo, n=50))
 
-    f, axarr = plt.subplots(3,4, figsize=(30,15))
+    f, axarr = plt.subplots(3,4, figsize=(30,20))
+    plt.suptitle('Image retrieval with embeddings of ' + row["uid"].values[0] + 
+                '\nRank: ' + ', '.join([str(x) for x in find_pos_matches(sim, list_theo, n=50)]))
     axarr = axarr.flatten()
     drawer = row["path"].values[0].split('/')[0]
     img = row["path"].values[0].split('_')[1].split('.')[0]
     image_a = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
         
+    axarr[0].set_facecolor('black')
     axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
-    axarr[0].set_title(row["AuthorOriginal"].values[0] + row["Description"].values[0])
+    axarr[0].set_title(row["AuthorOriginal"].values[0] + '\n ' + row["Description"].values[0] + '\n REFERENCE')
     for i in range(len(sim[:11])):
         if sim[i] in list_theo:
             correct = 'CORRECT'
@@ -448,7 +456,7 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
         row_2 = data[data['uid'] == sim[i]]
         info_2 = str(row_2["AuthorOriginal"].values[0]) + '\n ' + str(row_2["Description"].values[0])
     
-        axarr[i+1].set_title(info_2 + ' ' + correct)
+        axarr[i+1].set_title(info_2 + '\n' + 'Similarity: ' + str(np.round((1 - similarities[i]), 2)) + ', Grountruth: ' + correct)
         drawer = catch(sim[i], uid2path).split('/')[0]
         img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
         image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
@@ -458,13 +466,15 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
     plt.savefig('/scratch/students/schaerf/figures/' + row["uid"].values[0] + '.jpg')
     plt.show()
     
-    sim_rerank = rerank_spatial(row["uid"].values[0], sim, uid2path)
+    sim_rerank, similarities_rerank = rerank_spatial(row["uid"].values[0], sim, uid2path, similarities=True)
     print('positions of matches after reranking', find_pos_matches(sim_rerank, list_theo, n=50))
 
-    f, axarr = plt.subplots(3,4, figsize=(30,15))
+    f, axarr = plt.subplots(3,4, figsize=(30,20))
+    plt.suptitle('Image retrieval with reranking of ' + row["uid"].values[0] + 
+                '\nRank: ' + ', '.join([str(x) for x in find_pos_matches(sim_rerank, list_theo, n=50)]))
     axarr = axarr.flatten()
     axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
-    axarr[0].set_title(row["AuthorOriginal"].values[0] + '\n ' + row["Description"].values[0])
+    axarr[0].set_title(row["AuthorOriginal"].values[0] + '\n ' + row["Description"].values[0] + '\n REFERENCE')
     for i in range(len(sim_rerank[:11])):
         if sim[i] in list_theo:
             correct = 'CORRECT'
@@ -472,9 +482,9 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
             correct = 'WRONG'
 
         row_2 = data[data['uid'] == sim_rerank[i]]
-        info_2 = str(row_2["AuthorOriginal"].values[0]) + ' ' + str(row_2["Description"].values[0])
+        info_2 = str(row_2["AuthorOriginal"].values[0]) + '\n' + str(row_2["Description"].values[0])
     
-        axarr[i+1].set_title(info_2 + "(rerank) " + ' ' + correct)
+        axarr[i+1].set_title(info_2 + '(rerank)\n' + 'Matches: ' + str(similarities_rerank[i]) + ', Grountruth: ' + correct)
         drawer = catch(sim_rerank[i], uid2path).split('/')[0]
         img = catch(sim_rerank[i], uid2path).split('_')[1].split('.')[0]
         image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')

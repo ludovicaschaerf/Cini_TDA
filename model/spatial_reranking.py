@@ -5,7 +5,10 @@ from tqdm import tqdm
 import torchvision.transforms as transforms
 from PIL import Image
 from multiprocessing import Pool
-    
+import pickle
+from utils import get_embedding    
+
+### from utils to avoid circular import
 def preprocess_image_test(img_name, resolution=480):
     img = Image.open(img_name)
     tfms = transforms.Compose(
@@ -25,8 +28,65 @@ def catch(x, uid2path):
     except:
         return np.nan
 
+### make embeddings
 
-def rerank_spatial(uid, sims, uid2path):
+replica_dir = '/mnt/project_replica/datasets/cini/'
+data_dir = '/scratch/students/schaerf/'
+
+def load_files():
+    with open(data_dir + 'list_iconography.pkl', 'rb') as infile:
+        files = pickle.load(infile)
+
+    print(len(files))
+
+    with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
+            uid2path = pickle.load(outfile)
+
+    return files, uid2path
+
+def make_embds():
+    files, uid2path = load_files()
+    model = ReplicaNet('resnext-101', 'cpu')
+    
+    embeddings = []
+    for img in tqdm(files):
+        C = preprocess_image_test(replica_dir + catch(img, uid2path), 320)
+        pool_C = model.predict_non_pooled(C)
+        pool_C = np.moveaxis(pool_C.squeeze(0).cpu().detach().numpy(), 0, -1)
+
+        embeddings.append([img, pool_C]) #sparse.csr_matrix(
+        
+
+    embeddings = np.array(embeddings, dtype=np.ndarray)
+    #print(embeddings)
+
+    np.save(data_dir + 'embedding_no_pool/' 'madonnas.npy', embeddings)
+
+def make_embds_pooled():
+    files, uid2path = load_files()
+    model = ReplicaNet('resnext-101', 'cpu')
+    embeddings = []
+    for img in tqdm(files):
+        C = get_embedding(preprocess_image_test(replica_dir + catch(img, uid2path), 320), model, )
+        
+        embeddings.append([img, C]) #sparse.csr_matrix(
+        
+
+    embeddings = np.array(embeddings, dtype=np.ndarray)
+    #print(embeddings)
+
+    np.save(data_dir + 'embedding_no_pool/' 'madonnas_pooled.npy', embeddings)
+
+def make_sim_matrix():
+    files, uid2path = load_files()
+    embeds = np.load(data_dir + 'embedding_no_pool/madonnas.npy', allow_pickle=True)
+    sim_mat, index = sim_matrix_rerank(embeds)
+
+    np.save(data_dir + 'embedding_no_pool/' 'similarities_madonnas.npy', sim_mat)
+
+### reranking
+
+def rerank_spatial(uid, sims, uid2path, similarities=False):
     model = ReplicaNet('resnext-101', 'cpu')
     replica_dir = '/mnt/project_replica/datasets/cini/'
     A = preprocess_image_test(replica_dir + catch(uid, uid2path), 320)
@@ -47,7 +107,11 @@ def rerank_spatial(uid, sims, uid2path):
     sort_arr = np.argsort(ranks)
     rev_arr = np.flipud(sort_arr) 
     sims_rerank = np.array(sims)[rev_arr]
-    return sims_rerank
+    if similarities:
+        rerank = np.array(ranks)[rev_arr]
+        return sims_rerank, rerank
+    else:
+        return sims_rerank
 
 def sim_matrix_rerank(embeds):
     sim_matrix = np.empty((embeds.shape[0], embeds.shape[0]))
@@ -60,20 +124,22 @@ def sim_matrix_rerank(embeds):
     return sim_matrix, index
 
 
-def process_row(x):
-    output = np.empty_like(values)
-    for i, y in enumerate(values):
-        output[i] = match_feature_maps_simple(x, y)
-    return output
+# def process_row(x):
+#     output = np.empty_like(values)
+#     for i, y in enumerate(values):
+#         output[i] = match_feature_maps_simple(x, y)
+#     return output
 
 
-def sim_matrix_rerank_parallel(embeds):
-    values = np.vstack(embeds[1, :])
-    with Pool() as pool:
-        sim_matrix = np.array(pool.map(process_row, values))
-    index = embeds[0, :]
-    return sim_matrix, index
+# def sim_matrix_rerank_parallel(embeds):
+#     values = np.vstack(embeds[1, :])
+#     with Pool() as pool:
+#         sim_matrix = np.array(pool.map(process_row, values))
+#     index = embeds[0, :]
+#     return sim_matrix, index
 
+
+### from benoit's code
 
 class Timer:
 
