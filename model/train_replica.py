@@ -1,3 +1,4 @@
+from tkinter import E
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -18,6 +19,12 @@ from utils import *
 now = datetime.now()
 now = now.strftime("%d-%m-%Y_%H:%M:%S")
 
+def catch_error(path, model, device, resolution):
+    try:
+        return get_embedding(preprocess_image_test(path, resolution=resolution), model, device=device)
+    except Exception as e:
+        print(e)
+        return 0
 
 def train_replica(
     model,
@@ -62,7 +69,10 @@ def train_replica(
     )
 
     
-    embeddings = [[uid, get_embedding(preprocess_image_test(path_, resolution=resolution), model, device=device,)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique())) if path.exists(path_)]
+    embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique())) if path.exists(path_)]
+    print(embeddings.shape)
+    embeddings = embeddings[embeddings[:,1] != 0]
+    print(embeddings.shape)
     embeddings = np.array(embeddings, dtype=np.ndarray)
     np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
@@ -143,11 +153,7 @@ def train_replica(
                 embeddings = [
                     [
                         uid,
-                        get_embedding(
-                            preprocess_image_test(path_, resolution=resolution),
-                            model,
-                            device=device,
-                        ),
+                        catch_error(path_, model, device, resolution),
                     ]
                     for uid, path_ in tqdm(
                         zip(data["uid"].unique(), data["path"].unique())
