@@ -129,7 +129,7 @@ def sim_matrix_rerank(embeds):
     print(sim_matrix.shape)
     for i in tqdm(range(embeds.shape[0])):
         for j in range(embeds.shape[0] // 2):
-            sim_matrix[i, j] = match_feature_maps_simple(embeds[i, 1], embeds[j, 1])
+            sim_matrix[i, j] = match_feature_maps_simple(embeds[1, i], embeds[1, j], norm=True)
     
     index = embeds[0, :]
     return sim_matrix, index
@@ -343,7 +343,7 @@ def match_feature_maps(f_map_1, f_map_2, norm_epsilon=0, margin=1, crosscheck_li
     return num_matches, None, (src_pts, dst_pts), mask.tolist(), (box1, box2)
 
 
-def match_feature_maps_simple(f_map_1, f_map_2, norm_epsilon=0, margin=1, crosscheck_limit=3):
+def match_feature_maps_simple(f_map_1, f_map_2, norm_epsilon=0, margin=1, crosscheck_limit=3, norm=False):
     with Timer("candidates", disable=True):
         src_pts, dst_pts, distances = get_candidates(f_map_1, f_map_2, norm_epsilon, margin, crosscheck_limit)
     
@@ -353,4 +353,7 @@ def match_feature_maps_simple(f_map_1, f_map_2, norm_epsilon=0, margin=1, crossc
     with Timer("spatially_coherent", disable=True):
         M, mask = spatially_coherent_mask(src_pts, dst_pts, residual_threshold=2.0)
     num_matches = int(np.sum(mask))
-    return num_matches 
+    if norm:
+        return num_matches / len(distances)
+    else:
+        return num_matches
