@@ -9,11 +9,11 @@ from datetime import datetime
 import copy
 from tqdm import tqdm
 import pandas as pd
-
+import os.path
+from os import path
 # from scipy import sparse
 
 from utils import *
-
 
 now = datetime.now()
 now = now.strftime("%d-%m-%Y_%H:%M:%S")
@@ -61,7 +61,8 @@ def train_replica(
         columns=["Unnamed: 0", "level_0"]
     )
 
-    embeddings = [[uid, get_embedding(preprocess_image_test(path, resolution=resolution), model, device=device,)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    
+    embeddings = [[uid, get_embedding(preprocess_image_test(path_, resolution=resolution), model, device=device,)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique())) if path.exists(path_)]
     embeddings = np.array(embeddings, dtype=np.ndarray)
     np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
@@ -143,14 +144,15 @@ def train_replica(
                     [
                         uid,
                         get_embedding(
-                            preprocess_image_test(path, resolution=resolution),
+                            preprocess_image_test(path_, resolution=resolution),
                             model,
                             device=device,
                         ),
                     ]
-                    for uid, path in tqdm(
+                    for uid, path_ in tqdm(
                         zip(data["uid"].unique(), data["path"].unique())
                     )
+                    if path.exists(path_)
                 ]
                 embeddings = np.array(embeddings, dtype=np.ndarray)
                 np.save(
