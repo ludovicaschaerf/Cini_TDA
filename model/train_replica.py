@@ -26,7 +26,6 @@ def train_replica(
     uid2path,
     device="cpu",
     data_dir="/scratch/students/schaerf/",
-    replica_dir="/mnt/project_replica/datasets/cini/",
     model_name="resnext-101",
     resolution=360,
     num_epochs=20,
@@ -58,19 +57,19 @@ def train_replica(
     losses = []
     scores = []
 
-    data = pd.read_csv(data_dir + "dedup_data_sample.csv").drop(
+    data = pd.read_csv(data_dir + "dedup_data_sample_wga.csv").drop(
         columns=["Unnamed: 0", "level_0"]
     )
 
-    #embeddings = [[uid, get_embedding(preprocess_image_test(replica_dir + path, resolution=resolution), model, device=device,)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
-    #embeddings = np.array(embeddings, dtype=np.ndarray)
-    #np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+    embeddings = [[uid, get_embedding(preprocess_image_test(path, resolution=resolution), model, device=device,)] for uid, path in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    embeddings = np.array(embeddings, dtype=np.ndarray)
+    np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    noww = '14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
-    embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
-        allow_pickle=True,
-    )
+    # noww = '14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
+    # embeddings = np.load(
+    #     data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+    #     allow_pickle=True,
+    # )
 
     train_test = data[data["set"].notnull()].reset_index()
 
@@ -144,7 +143,7 @@ def train_replica(
                     [
                         uid,
                         get_embedding(
-                            preprocess_image_test(replica_dir + path, resolution=resolution),
+                            preprocess_image_test(path, resolution=resolution),
                             model,
                             device=device,
                         ),
