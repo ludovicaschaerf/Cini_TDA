@@ -6,9 +6,20 @@ import torchvision.transforms as transforms
 from PIL import Image
 from multiprocessing import Pool
 import pickle
-from utils import get_embedding    
 
 ### from utils to avoid circular import
+
+def get_embedding(img, model, type="fine_tune", device="cpu"):
+    if type == "fine_tune":
+        embedding = model.predict(img.squeeze(1).to(device))[0].cpu().detach().numpy()
+        #print(embedding.shape)
+    else:
+        embedding = model(img.squeeze(1).to(device))[0].cpu().detach().numpy()
+        norm = np.linalg.norm(embedding)
+        embedding = embedding / norm
+    return embedding
+
+
 def preprocess_image_test(img_name, resolution=480):
     img = Image.open(img_name)
     tfms = transforms.Compose(
