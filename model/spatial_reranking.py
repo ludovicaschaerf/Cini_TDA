@@ -90,11 +90,12 @@ def make_embds_pooled():
 
 def make_sim_matrix():
     embeds = np.load(data_dir + 'embedding_no_pool/madonnas.npy', allow_pickle=True)
-    embeds = embeds[:100, :]
+    n = 2600
+    embeds = embeds[:n, :]
     print(embeds.shape)
     sim_mat, index = sim_matrix_rerank(embeds)
 
-    np.save(data_dir + 'embedding_no_pool/' 'similarities_madonnas_100.npy', sim_mat)
+    np.save(data_dir + 'embedding_no_pool/' 'similarities_madonnas_'+str(n)+'.npy', sim_mat)
 
 ### reranking
 
@@ -129,7 +130,7 @@ def sim_matrix_rerank(embeds):
     sim_matrix = np.empty((embeds.shape[0], embeds.shape[0]))
     print(sim_matrix.shape)
     for i in tqdm(range(embeds.shape[0])):
-        for j in range(embeds.shape[0] - i):
+        for j in range(embeds.shape[0]):
             sim_matrix[i, j] = match_feature_maps_simple(embeds[i, 1], embeds[j, 1], norm=True)
     
     index = embeds[:, 0]

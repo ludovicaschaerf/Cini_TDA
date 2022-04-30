@@ -226,6 +226,7 @@ def show_images(img_names):
 
 def preprocess_image(img_name, resolution=480):
     img = Image.open(img_name)
+    img = img.convert('RGB')
     tfms = transforms.Compose(
         [
             transforms.ToTensor(),
@@ -244,6 +245,7 @@ def preprocess_image(img_name, resolution=480):
 
 def preprocess_image_test(img_name, resolution=480):
     img = Image.open(img_name)
+    img = img.convert('RGB')
     tfms = transforms.Compose(
         [
             transforms.ToTensor(),
@@ -374,15 +376,15 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
     tree = make_tree_orig(embeddings)
     Cs = []
     for i in tqdm(range(train_test.shape[0])):
-            list_theo = (
-                list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
-                + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
-                + [train_test["uid"][i]]
-            )
-            list_sim = find_most_similar_no_theo(
-                train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), list_theo, n=n+1
-            )
-            Cs.append(list_sim)
+        list_theo = (
+            list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
+            + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
+            + [train_test["uid"][i]]
+        )
+        list_sim = find_most_similar_no_theo(
+            train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), list_theo, n=n+1
+        )
+        Cs.append(list_sim)
             
 
     
