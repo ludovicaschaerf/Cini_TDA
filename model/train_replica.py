@@ -10,8 +10,6 @@ from datetime import datetime
 import copy
 from tqdm import tqdm
 import pandas as pd
-import os.path
-from os import path
 # from scipy import sparse
 
 from utils import *
@@ -67,20 +65,17 @@ def train_replica(
     data = pd.read_csv(data_dir + "dedup_data_sample_wga.csv").drop(
         columns=["Unnamed: 0", "level_0"]
     )
-
     
-    embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique())) if path.exists(path_)]
-    print(embeddings.shape)
-    embeddings = embeddings[embeddings[:,1] != 0]
-    print(embeddings.shape)
-    embeddings = np.array(embeddings, dtype=np.ndarray)
-    np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+    
+    # embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    # embeddings = np.array(embeddings, dtype=np.ndarray)
+    # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    # noww = '14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
-    # embeddings = np.load(
-    #     data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
-    #     allow_pickle=True,
-    # )
+    noww = '29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
+    embeddings = np.load(
+        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+        allow_pickle=True,
+    )
 
     train_test = data[data["set"].notnull()].reset_index()
 
@@ -158,7 +153,6 @@ def train_replica(
                     for uid, path_ in tqdm(
                         zip(data["uid"].unique(), data["path"].unique())
                     )
-                    if path.exists(path_)
                 ]
                 embeddings = np.array(embeddings, dtype=np.ndarray)
                 np.save(
