@@ -33,8 +33,8 @@ def main(data_dir='/scratch/students/schaerf/', batch_size=8, num_epochs=1, mode
     
     model = ReplicaNet(model_name, device)
 
-    #noww = '14-04-2022_23:25:30'
-    #if data_dir + "models/model_weights_" + noww + model_name in glob(data_dir + "models/*"):
+    # noww = '30-04-2022_14:32:33'#'14-04-2022_23:25:30'
+    # if data_dir + "models/model_weights_" + noww + model_name in glob(data_dir + "models/*"):
     #    print("loaded from previously stored weights")
     #    model.load_state_dict(torch.load(data_dir + "models/model_weights_" + noww + model_name))
 
