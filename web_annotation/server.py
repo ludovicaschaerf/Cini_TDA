@@ -1,23 +1,47 @@
 from flask import Flask, render_template, request
 import argparse
+from glob import glob
+import json
+
 
 from annotation_tools import get_links, setup, store_morph
+from utils_clusters import * 
 
 parser = argparse.ArgumentParser(description='Model specifics')
 parser.add_argument('--n_subset', dest='n_subset',
                     type=int, help='', default=10000)
 parser.add_argument('--n_show', dest='n_show',
                     type=int, help='', default=10)
-parser.add_argument('--data_dir', dest='data_dir',
-                    type=str, help='', default="./data/")
+
 parser.add_argument('--path', dest='path',
-                    type=str, help='', default="./data/")
+                    type=str, help='', default="../data/")
+
+parser.add_argument('--data_dir', dest='data_dir',
+                    type=str, help='', default="../data/")
+
+parser.add_argument('--precomputed', dest='precomputed',
+                    type=bool, help='', default=True)
+
+parser.add_argument('--eps', dest='eps',
+                    type=float, help='', default=0.5)
 
 args = parser.parse_args()
 
 embeddings, data, tree, reverse_map, uid2path = setup(
     data_dir=args.data_dir, path=args.path, size=args.n_subset
 )
+
+cluster_df_rerank = make_clusters(args.data_dir)
+data_rerank = pd.read_csv(args.data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+
+if args.precomputed:
+    with open(args.data_dir + 'clusters_'+str(args.eps)+'_01-05-2022_19.pkl', 'rb') as infile:
+        cluster_df = pickle.load(infile)
+else:
+    cluster_df = make_clusters_embeddings(args.data_dir, dist=args.eps)
+
+cluster_file = 'clusters_'+str(args.eps)+'_01-05-2022_19'
+data = pd.read_csv(args.data_dir + 'dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 app = Flask(__name__)
 
@@ -67,11 +91,51 @@ def annotate_images():
         cold_start=request.method == "GET",
     )
 
+@app.route("/clusters_rerank", methods=["GET", "POST"])
+def clusters():
+    
+    INFO = images_in_clusters(cluster_df_rerank, data_rerank)
+        
+    return render_template(
+        "clusters.html",
+        data=INFO,
+        cold_start=request.method == "GET",
+    )
+    
+@app.route("/clusters_embeds", methods=["GET", "POST"])
+def clusters_embeds():
+    
+    INFO = images_in_clusters(cluster_df, data)
+    if request.method == "POST":
+        if request.form["submit"] == "similar_images":
+                       
+            
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+
+        if request.form["submit"] == "both_images":
+        
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+
+
+    return render_template(
+        "clusters.html",
+        data=INFO,
+        cold_start=request.method == "GET",
+    )
+
 
 if __name__ == "__main__":
 
     app.run(port=8080)
-
-    # from waitress import serve
-
-    # serve(app, host="0.0.0.0", port=8080)
