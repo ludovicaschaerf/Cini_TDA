@@ -166,8 +166,7 @@ def get_train_test_split(metadata, morphograph):
     ]
 
     positives["set"] = [
-        "val" if i % 3 == 0 and cl == "test" else cl
-        for i, cl in enumerate(positives["set"])
+        "val" if cl % 6 == 0 else set_ for cl, set_ in zip(positives["cluster"], positives["set"])
     ]
 
     return positives
