@@ -71,9 +71,9 @@ def train_replica(
     # embeddings = np.array(embeddings, dtype=np.ndarray)
     # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    noww = '29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
+    noww = '30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
     embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+        data_dir + "embeddings/" + model_name + "_epoch_1" + noww + ".npy",
         allow_pickle=True,
     )
 
@@ -218,3 +218,4 @@ def train_replica(
     ).to_csv(data_dir + "scores/scores_" + str(now) + ".csv")
 
     return model
+
