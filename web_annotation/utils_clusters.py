@@ -19,12 +19,20 @@ def images_in_clusters(cluster_df, data):
             rows = cluster_df[cluster_df['cluster'] == cluster]
             for row in rows.iterrows():
                 row_2 = data[data['uid'] == row[1]['uid']]
-                info_2 = str(row_2["AuthorOriginal"].values[0]) + '\n ' + str(row_2["Description"].values[0]) + '\n ' + str(row_2["set"].values[0])
-        
-                drawer = row[1]['path'].split('/')[0]
-                img = row[1]['path'].split('_')[1].split('.')[0]
+                info_2 = str(row_2["AuthorOriginal"].values[0]) + '\n ' + str(row_2["Description"].values[0]) + '\n ' + str(row_2["BeginDate"].values[0]) + '\n ' + str(row_2["set"].values[0])
                 uid = row[1]['uid']
-                image = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
+                    
+                if 'cini' in row[1]['path']:
+                    drawer = row[1]['path'].split('/')[-2]
+                    img = row[1]['path'].split('_')[1].split('.')[0]
+                    image = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
+                elif 'WGA' in row[1]['path']:
+                    drawer = '/'.join(row[1]['path'].split('/')[-3]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
+                    image = f'http://www.wga.hu/html/{drawer}.html'
+                else:
+                    print(row[1]['path'])  
+                    continue
+                      
                 data_agg[cluster].append([info_2,image, uid])
     return data_agg
     
@@ -45,14 +53,14 @@ def draw_clusters(cluster_num, cluster_df, data):
         drawer = row[1]['path'].split('/')[0]
         img = row[1]['path'].split('_')[1].split('.')[0]
         image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
-        
+        #'http://www.wga.hu/html/a/aachen/allegory.html'
         axarr[i].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
         
     plt.savefig('../figures/cluster_' + str(cluster_num) + '.jpg')
     plt.show()
     
 def setup_clusters(data_dir = '../data/'):
-    with open(data_dir + 'uid2path_old.pkl', 'rb') as outfile:
+    with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
         uid2path = pickle.load(outfile)
     with open(data_dir + 'list_iconography.pkl', 'rb') as infile:
         final = pickle.load(infile)
@@ -77,14 +85,12 @@ def make_clusters_embeddings(data_dir, dist=0.5):
     data = pd.read_csv(data_dir + 'dedup_data_sample_wga.csv')
     embeds = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy', allow_pickle=True) #embedding_no_pool/)
     
-    uids = list(data[data['path'].str.contains('cini')]['uid'])
+    uids = list(data['uid'])
     
     uid2path = {}
-    for i, row in data[data['path'].str.contains('cini')].iterrows():
-        uid2path[row['uid']] = '/'.join(row['path'].split('/')[-2:])
+    for i, row in data.iterrows():
+        uid2path[row['uid']] = row['path']
     
-    print(list(uid2path.items())[:3])
-
     db = DBSCAN(eps=dist, min_samples=2, metric='euclidean').fit(np.vstack(embeds[:,1])) #0.52 best so far
     labels = embeds[:,0]
     classes = db.labels_

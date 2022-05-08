@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request
 import argparse
 from glob import glob
+import json
+
 
 from annotation_tools import get_links, setup, store_morph
 from utils_clusters import * 
@@ -20,6 +22,8 @@ parser.add_argument('--data_dir', dest='data_dir',
 parser.add_argument('--precomputed', dest='precomputed',
                     type=bool, help='', default=True)
 
+parser.add_argument('--eps', dest='eps',
+                    type=float, help='', default=0.5)
 
 args = parser.parse_args()
 
@@ -31,13 +35,13 @@ cluster_df_rerank = make_clusters(args.data_dir)
 data_rerank = pd.read_csv(args.data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 if args.precomputed:
-    with open(args.data_dir + 'clusters_0.5_01-05-2022_19.pkl', 'rb') as infile:
+    with open(args.data_dir + 'clusters_'+str(args.eps)+'_01-05-2022_19.pkl', 'rb') as infile:
         cluster_df = pickle.load(infile)
 else:
-    cluster_df = make_clusters_embeddings(args.data_dir)
+    cluster_df = make_clusters_embeddings(args.data_dir, dist=args.eps)
 
-cluster_file = 'clusters_0.5_01-05-2022_19'
-data = pd.read_csv(args.data_dir + 'dedup_data_sample_wga.csv')
+cluster_file = 'clusters_'+str(args.eps)+'_01-05-2022_19'
+data = pd.read_csv(args.data_dir + 'dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 app = Flask(__name__)
 
@@ -97,7 +101,7 @@ def clusters():
         data=INFO,
         cold_start=request.method == "GET",
     )
-
+    
 @app.route("/clusters_embeds", methods=["GET", "POST"])
 def clusters_embeds():
     

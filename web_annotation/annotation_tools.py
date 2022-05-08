@@ -11,14 +11,14 @@ sys.path.insert(0, "../model/")
 from utils import show_suggestions, make_tree_orig, find_most_similar_no_theo, catch
 
 def setup(data_dir='/scratch/students/schaerf/', path='/home/guhennec/scratch/2021_Cini/TopologicalAnalysis_Cini/data/', size=1000):
-    data = pd.read_csv(data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+    data = pd.read_csv(data_dir + 'dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
     #embeddings = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
     embeddings = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy',allow_pickle=True)
     embeddings = embeddings[np.isin(embeddings[:,0], list(data["uid"].unique()))]
     tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
 
 
-    with open(data_dir + 'uid2path_old.pkl', 'rb') as outfile:
+    with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
         uid2path = pickle.load(outfile)
 
     return embeddings, data, tree, reverse_map, uid2path
@@ -46,18 +46,27 @@ def get_links(embeddings, data, tree, reverse_map, uid2path, uid=False, n=8):
     )
 
     images = []
-    drawer = row["path"].values[0].split('/')[0]
-    img = row["path"].values[0].split('_')[1].split('.')[0]
     info = row["AuthorOriginal"].values[0] + ' ' + row["Description"].values[0]
-    image_a = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
-        
+    if 'cini' in row[1]['path']:
+        drawer = row[1]['path'].split('/')[-2]
+        img = row[1]['path'].split('_')[1].split('.')[0]
+        image_a = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
+    elif 'WGA' in row[1]['path']:
+        drawer = '/'.join(row[1]['path'].split('/')[-3]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
+        image_a = f'http://www.wga.hu/html/{drawer}.html'
+                
     for i in range(len(sim)):
-        drawer = catch(sim[i], uid2path).split('/')[0]
-        img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
         row_2 = data[data['uid'] == sim[i]]
         info_2 = row_2["AuthorOriginal"].values[0] + ' ' + row_2["Description"].values[0]
+        if 'cini' in row[1]['path']:
+            drawer = catch(sim[i], uid2path).split('/')[-2]
+            img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
+            im = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
+        elif 'WGA' in row[1]['path']:
+            drawer = '/'.join(catch(sim[i], uid2path).split('/')[-3]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
+            im = f'http://www.wga.hu/html/{drawer}.html'
     
-        images.append((sim[i], f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/400,/0/default.jpg', info_2))
+        images.append((sim[i], im, info_2))
         
     
     return (row["uid"].values[0], image_a, info), images

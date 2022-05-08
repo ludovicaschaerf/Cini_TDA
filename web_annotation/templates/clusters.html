@@ -87,6 +87,14 @@
 
 
     <div class="col-9">
+        <!-- <div>
+            <canvas id="canvas" width="512" height="512"></canvas>
+        </div>
+
+        <script src="static/js/three.js"></script>
+        <script src="static/js/OrbitControls.js"></script> -->
+
+
         {% for cluster in data.keys() %}
         <form action="#" method="POST" class="mb-5 mt-3">
 
@@ -129,6 +137,15 @@
         $('#submit_both_imges').submit(function(e) {
             e.preventDefault();
         });
+    </script>
+
+    <script type=text/javascript>
+        const jsArrayOfItems = {
+            {
+                list_of_items | tojson
+            }
+        };
+        // ... do something with jsArrayOfItems in JavaScript ...
     </script>
 </body>
 
