@@ -12,12 +12,13 @@ from utils import show_suggestions, make_tree_orig, find_most_similar_no_theo, c
 
 def setup(data_dir='/scratch/students/schaerf/', path='/home/guhennec/scratch/2021_Cini/TopologicalAnalysis_Cini/data/', size=1000):
     data = pd.read_csv(data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
-    embeddings = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
+    #embeddings = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
+    embeddings = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy',allow_pickle=True)
     embeddings = embeddings[np.isin(embeddings[:,0], list(data["uid"].unique()))]
     tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
 
 
-    with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
+    with open(data_dir + 'uid2path_old.pkl', 'rb') as outfile:
         uid2path = pickle.load(outfile)
 
     return embeddings, data, tree, reverse_map, uid2path
