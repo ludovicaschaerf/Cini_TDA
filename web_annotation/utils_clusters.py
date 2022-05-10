@@ -7,33 +7,39 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import json
 from glob import glob
 
 from sklearn.cluster import DBSCAN
+from sklearn.manifold import TSNE
 
-def images_in_clusters(cluster_df, data):
+def images_in_clusters(cluster_df, data, data_dir='../data/', position=False):
     data_agg = {}
+    with open(data_dir + 'map2pos.pkl', 'rb') as infile:
+        map2pos = pickle.load(infile)
+    cluster_df['pos'] = cluster_df['uid'].apply(lambda x: catch(x, map2pos))
     for cluster in cluster_df['cluster'].unique():
         if cluster not in [-1]:
-            data_agg[cluster] = []
+            data_agg[int(cluster)] = []
             rows = cluster_df[cluster_df['cluster'] == cluster]
             for row in rows.iterrows():
                 row_2 = data[data['uid'] == row[1]['uid']]
                 info_2 = str(row_2["AuthorOriginal"].values[0]) + '\n ' + str(row_2["Description"].values[0]) + '\n ' + str(row_2["BeginDate"].values[0]) + '\n ' + str(row_2["set"].values[0])
                 uid = row[1]['uid']
-                    
+                pos = row[1]['pos']    
                 if 'cini' in row[1]['path']:
-                    drawer = row[1]['path'].split('/')[-2]
-                    img = row[1]['path'].split('_')[1].split('.')[0]
+                    drawer = row[1]['path'].split('/')[-1].split('_')[0]
+                    img = row[1]['path'].split('/')[-1].split('_')[1].split('.')[0]
                     image = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
                 elif 'WGA' in row[1]['path']:
-                    drawer = '/'.join(row[1]['path'].split('/')[-3]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
-                    image = f'http://www.wga.hu/html/{drawer}.html'
+                    drawer = '/'.join(row[1]['path'].split('/')[6:]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
+                    #print(drawer)
+                    image = f'http://www.wga.hu/art/{drawer}.jpg'
                 else:
                     print(row[1]['path'])  
                     continue
                       
-                data_agg[cluster].append([info_2,image, uid])
+                data_agg[int(cluster)].append([info_2, image, uid, float(pos[0]), float(pos[1])])
     return data_agg
     
 
@@ -52,6 +58,7 @@ def draw_clusters(cluster_num, cluster_df, data):
         axarr[i].set_title(info_2)
         drawer = row[1]['path'].split('/')[0]
         img = row[1]['path'].split('_')[1].split('.')[0]
+        
         image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
         #'http://www.wga.hu/html/a/aachen/allegory.html'
         axarr[i].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
@@ -66,6 +73,12 @@ def setup_clusters(data_dir = '../data/'):
         final = pickle.load(infile)
     return data_dir, uid2path, final
 
+def catch(x, uid2path):
+    try:
+        return uid2path[x]
+    except:
+        return ''
+
 def make_clusters(data_dir):
     data_dir, uid2path, final = setup_clusters(data_dir)
     sim_mat = np.load(data_dir + 'similarities_madonnas_2600.npy', allow_pickle=True) #embedding_no_pool/)
@@ -76,12 +89,24 @@ def make_clusters(data_dir):
 
     clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
     #print(clusters['cluster'].value_counts(), clusters['cluster'].nunique())
-    clusters['path'] = clusters['uid'].apply(lambda x: uid2path[x])
+    clusters['path'] = clusters['uid'].apply(lambda x: catch(x, uid2path))
+
+    
     return clusters
 
 
+def convert_to_json(data_agg):
 
-def make_clusters_embeddings(data_dir, dist=0.5):
+    new = ''
+    for cluster in data_agg.keys():
+
+        new  += '!!' + str(cluster) + '%%' + '%%'.join(['$$'.join([str(c) for c in cli]) for cli in data_agg[cluster]])
+
+
+    return new
+
+
+def make_clusters_embeddings(data_dir, dist=0.5, min_n=2):
     data = pd.read_csv(data_dir + 'dedup_data_sample_wga.csv')
     embeds = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy', allow_pickle=True) #embedding_no_pool/)
     
@@ -91,7 +116,7 @@ def make_clusters_embeddings(data_dir, dist=0.5):
     for i, row in data.iterrows():
         uid2path[row['uid']] = row['path']
     
-    db = DBSCAN(eps=dist, min_samples=2, metric='euclidean').fit(np.vstack(embeds[:,1])) #0.52 best so far
+    db = DBSCAN(eps=dist, min_samples=min_n, metric='euclidean').fit(np.vstack(embeds[:,1])) #0.52 best so far
     labels = embeds[:,0]
     classes = db.labels_
 
@@ -103,9 +128,24 @@ def make_clusters_embeddings(data_dir, dist=0.5):
     clusters = clusters[clusters['uid'].isin(uids)].reset_index()
     print(clusters.shape)
     clusters['path'] = clusters['uid'].apply(lambda x: uid2path[x])
+
+    #map2pos = get_2d_pos(data_dir)
+    # with open(data_dir + 'map2pos.pkl', 'rb') as infile:
+    #     map2pos = pickle.load(infile)
+    # clusters['pos'] = clusters['uid'].apply(lambda x: catch(x, map2pos))
+
     print(clusters.shape)
     return clusters
 
+def get_2d_pos(data_dir):
+    embeds = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy', allow_pickle=True) #embedding_no_pool/)
+    embeddings_new = TSNE(
+            n_components=2
+        ).fit_transform(np.vstack(embeds[:, 1]))
+    map2pos = {}
+    for i, uid in enumerate(embeds[:,0]):
+        map2pos[uid] = embeddings_new[i]
+    return map2pos
 
 def store_morph_cluster(imges_uids_sim, info_cluster, cluster_num, cluster_file, data_dir='/scratch/students/schaerf/annotation/'):
     morpho = pd.read_csv(data_dir + 'morphograph_clusters.csv')

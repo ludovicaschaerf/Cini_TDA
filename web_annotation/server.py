@@ -43,6 +43,11 @@ else:
 cluster_file = 'clusters_'+str(args.eps)+'_01-05-2022_19'
 data = pd.read_csv(args.data_dir + 'dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
+
+with open(args.data_dir + 'clusters_'+str(0.57)+'_01-05-2022_19.pkl', 'rb') as infile:
+    cluster_df_h = pickle.load(infile)
+
+
 app = Flask(__name__)
 
 
@@ -96,6 +101,28 @@ def clusters():
     
     INFO = images_in_clusters(cluster_df_rerank, data_rerank)
         
+    if request.method == "POST":
+        if request.form["submit"] == "similar_images":
+                       
+            
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+
+        if request.form["submit"] == "both_images":
+        
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+    
     return render_template(
         "clusters.html",
         data=INFO,
@@ -132,6 +159,72 @@ def clusters_embeds():
     return render_template(
         "clusters.html",
         data=INFO,
+        cold_start=request.method == "GET",
+    )
+
+@app.route("/clusters_embeds_h", methods=["GET", "POST"])
+def clusters_embeds_h():
+    
+    INFO = images_in_clusters(cluster_df_h, data)
+    if request.method == "POST":
+        if request.form["submit"] == "similar_images":
+                       
+            
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+
+        if request.form["submit"] == "both_images":
+        
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+
+
+    return render_template(
+        "clusters.html",
+        data=INFO,
+        cold_start=request.method == "GET",
+    )
+
+@app.route("/visual_clusters", methods=["GET", "POST"])
+def visual_clusters():
+    
+    INFO = images_in_clusters(cluster_df, data)
+    if request.method == "POST":
+        if request.form["submit"] == "similar_images":
+                       
+            
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+
+        if request.form["submit"] == "both_images":
+        
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+
+
+    return render_template(
+        "visual_clusters.html",
+        data=convert_to_json(INFO),
         cold_start=request.method == "GET",
     )
 
