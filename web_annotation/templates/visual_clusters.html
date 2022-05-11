@@ -207,7 +207,7 @@
 
 
                                                 for (let i = 0; i < cluster_objs[cluster].length; i++) {
-                                                    if (cluster_objs[cluster][i] != undefined) {
+                                                    if (cluster_objs[cluster][i].split('$$')[1] != undefined) {
                                                         box_id = 'ckb' + cluster + 'idx' + i;
                                                         value1 = cluster_objs[cluster];
                                                         div.innerHTML += '<div class="custom-control custom-checkbox image-checkbox row ms-1"><input type="checkbox" class="custom-control-input" id="' +
@@ -244,6 +244,7 @@
                         scene.add(level0);
                         level0.position.z = 0;
                         controls = new THREE.OrbitControls(camera, renderer.domElement);
+                        controls.enableRotate = false;
 
                         camera.position.z = 3;
                         controls.saveState();
