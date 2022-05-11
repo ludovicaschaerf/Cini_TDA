@@ -62,20 +62,20 @@ def train_replica(
     losses = []
     scores = []
 
-    data = pd.read_csv(data_dir + "dedup_data_sample_wga.csv").drop(
+    data = pd.read_csv(data_dir + "data_wga_cini_45000.csv").drop(
         columns=["Unnamed: 0", "level_0"]
     )
     
     
-    # embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
-    # embeddings = np.array(embeddings, dtype=np.ndarray)
-    # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+    embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    embeddings = np.array(embeddings, dtype=np.ndarray)
+    np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    noww = '30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
-    embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_1" + noww + ".npy",
-        allow_pickle=True,
-    )
+    # noww = '30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
+    # embeddings = np.load(
+    #     data_dir + "embeddings/" + model_name + "_epoch_1" + noww + ".npy",
+    #     allow_pickle=True,
+    # )
 
     train_test = data[data["set"].notnull()].reset_index()
 
