@@ -13,6 +13,12 @@ import torchvision.models as models
 import torch
 import torchvision.transforms as transforms
 
+import imgaug as ia
+import imgaug.augmenters as iaa
+from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+
+
+
 from tqdm import tqdm
 import requests
 from io import BytesIO
@@ -127,7 +133,23 @@ def cosine_distance():
     ## TODO
     return "distant"
 
+def augment(image):
+    rotate=iaa.Affine(rotate=(-50, 30))
+    rotate_image=rotate.augment_image(image)
+    gaussian_noise=iaa.AdditiveGaussianNoise(10,20)
+    noise_image=gaussian_noise.augment_image(image)
+    crop = iaa.Crop(percent=(0, 0.3)) # crop image
+    corp_image=crop.augment_image(image)
 
+    bbs = BoundingBoxesOnImage([
+        BoundingBox(x1=10, x2=520, y1=10, y2=300)
+    ], shape=image.shape)
+
+    move=iaa.Affine(translate_percent={"x": 0.1}, scale=0.8)
+    image_aug, bbs_aug = move(image=image, bounding_boxes=bbs)
+    ia.imshow(bbs_aug.draw_on_image(image_aug, size=2))
+    #https://nanonets.com/blog/data-augmentation-how-to-use-deep-learning-when-you-have-limited-data-part-2/
+    
 #########################################################
 ##### Preprocess data
 #########################################################
@@ -229,14 +251,14 @@ def preprocess_image(img_name, resolution=480):
     tfms = transforms.Compose(
         [
             transforms.ToTensor(),
-            # transforms.RandomResizedCrop((resolution, resolution), ),
-            transforms.Resize((resolution, resolution)),
+            transforms.Resize((resolution+120, resolution+120)),
+            transforms.RandomResizedCrop((resolution, resolution), ),
             transforms.ColorJitter(
-                   brightness=0.1,
-                   contrast=0.1,
-                   saturation=0.1
+                   brightness=0.3,
+                   contrast=0.3,
+                   saturation=0.3
             ),
-            transforms.RandomHorizontalFlip(p=0.1),
+            transforms.RandomHorizontalFlip(p=0.3),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
