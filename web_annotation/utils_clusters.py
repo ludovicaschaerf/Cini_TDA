@@ -13,9 +13,9 @@ from glob import glob
 from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
 
-def images_in_clusters(cluster_df, data, data_dir='../data/', position=False):
+def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_10-05-2022.pkl'):
     data_agg = {}
-    with open(data_dir + 'map2pos.pkl', 'rb') as infile:
+    with open(data_dir + map_file, 'rb') as infile:
         map2pos = pickle.load(infile)
     cluster_df['pos'] = cluster_df['uid'].apply(lambda x: catch(x, map2pos))
     for cluster in cluster_df['cluster'].unique():
@@ -28,9 +28,12 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', position=False):
                 uid = row[1]['uid']
                 pos = row[1]['pos']    
                 if 'cini' in row[1]['path']:
-                    drawer = row[1]['path'].split('/')[-1].split('_')[0]
-                    img = row[1]['path'].split('/')[-1].split('_')[1].split('.')[0]
-                    image = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
+                    try:
+                        drawer = row[1]['path'].split('/')[-1].split('_')[0]
+                        img = row[1]['path'].split('/')[-1].split('_')[1].split('.')[0]
+                        image = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
+                    except:
+                        image = ''
                 elif 'WGA' in row[1]['path']:
                     drawer = '/'.join(row[1]['path'].split('/')[6:]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
                     #print(drawer)
@@ -79,9 +82,9 @@ def catch(x, uid2path):
     except:
         return ''
 
-def make_clusters(data_dir):
+def make_clusters(data_dir, embed_file='similarities_madonnas_2600.npy'):
     data_dir, uid2path, final = setup_clusters(data_dir)
-    sim_mat = np.load(data_dir + 'similarities_madonnas_2600.npy', allow_pickle=True) #embedding_no_pool/)
+    sim_mat = np.load(data_dir + embed_file, allow_pickle=True) #embedding_no_pool/)
     diff_mat = np.round(1 - sim_mat, 3)
     db = DBSCAN(eps=0.03, min_samples=2, metric='precomputed').fit(diff_mat)
     labels = final[:2600]
@@ -106,10 +109,12 @@ def convert_to_json(data_agg):
     return new
 
 
-def make_clusters_embeddings(data_dir, dist=0.5, min_n=2):
-    data = pd.read_csv(data_dir + 'dedup_data_sample_wga.csv')
-    embeds = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy', allow_pickle=True) #embedding_no_pool/)
+def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000.csv', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy', dist=0.5, min_n=2):
+    # data = pd.read_csv(data_dir + 'dedup_data_sample_wga.csv')
+    # embeds = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy', allow_pickle=True) #embedding_no_pool/)
     
+    data = pd.read_csv(data_dir + data_file)
+    embeds = np.load(data_dir + embed_file, allow_pickle=True) #embedding_no_pool/)
     uids = list(data['uid'])
     
     uid2path = {}
@@ -137,8 +142,10 @@ def make_clusters_embeddings(data_dir, dist=0.5, min_n=2):
     print(clusters.shape)
     return clusters
 
-def get_2d_pos(data_dir):
-    embeds = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy', allow_pickle=True) #embedding_no_pool/)
+def get_2d_pos(data_dir='../data/', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy'):
+    # embeds = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy', allow_pickle=True) #embedding_no_pool/)
+    embeds = np.load(data_dir + embed_file, allow_pickle=True) #embedding_no_pool/)
+    
     embeddings_new = TSNE(
             n_components=2
         ).fit_transform(np.vstack(embeds[:, 1]))
