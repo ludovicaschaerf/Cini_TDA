@@ -40,8 +40,13 @@ embeds_file = 'resnext-101_epoch_410-05-2022_10%3A11%3A05.npy'
 map_file = 'map2pos_10-05-2022.pkl'
 cluster_file = 'clusters_'+str(args.eps)+'_10-05-2022_19'
 
+data_file = 'dedup_data_sample_wga.csv' 
+embeds_file = 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy' 
+map_file = 'map2pos.pkl'
+cluster_file = 'clusters_'+str(args.eps)+'_01-05-2022_19'
+
 if args.precomputed:
-    with open(args.data_dir + 'clusters_'+str(args.eps)+'_10-05-2022_19.pkl', 'rb') as infile:
+    with open(args.data_dir + cluster_file + '.pkl', 'rb') as infile:
         cluster_df = pickle.load(infile)
 else:
     cluster_df = make_clusters_embeddings(args.data_dir, dist=args.eps, data_file=data_file, embed_file=embeds_file)
