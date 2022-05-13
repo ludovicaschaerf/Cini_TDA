@@ -13,6 +13,18 @@ from glob import glob
 from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
 
+def make_links(data_hierarchical):
+    cluster_lists = data_hierarchical.groupby('cluster_desc')['cluster'].apply(lambda x: list(x))
+    pairs_to_match = []
+    for list_ in cluster_lists:
+        for i in range(len(list_)):
+            for j in range(len(list_) - i):
+                if list_[j] != list_[i]:
+                    if list_[j] != -1 and list_[i] != -1:
+                        pairs_to_match.append(list(set([str(list_[i]),str(list_[j])])))
+    return list(set(['-'.join(pair) for pair in pairs_to_match]))
+
+
 def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_10-05-2022.pkl'):
     data_agg = {}
     with open(data_dir + map_file, 'rb') as infile:

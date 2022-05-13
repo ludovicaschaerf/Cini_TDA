@@ -45,14 +45,18 @@ embeds_file = 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy'
 map_file = 'map2pos.pkl'
 cluster_file = 'clusters_'+str(args.eps)+'_01-05-2022_19'
 
+
+hierarchical_file = 'dedup_data_sample_wga_cluster.csv'
+
 if args.precomputed:
     with open(args.data_dir + cluster_file + '.pkl', 'rb') as infile:
         cluster_df = pickle.load(infile)
 else:
     cluster_df = make_clusters_embeddings(args.data_dir, dist=args.eps, data_file=data_file, embed_file=embeds_file)
 
-data = pd.read_csv(args.data_dir + data_file).drop(columns=['Unnamed: 0', 'level_0'])
+#data = pd.read_csv(args.data_dir + data_file).drop(columns=['Unnamed: 0', 'level_0'])
 
+data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
 
 
 app = Flask(__name__)
@@ -135,7 +139,42 @@ def clusters():
         data=INFO,
         cold_start=request.method == "GET",
     )
+
+@app.route("/clusters_hierarchical", methods=["GET", "POST"])
+def clusters_hierarchical():
+    cluster_df_hierarchical = data.copy()
+    cluster_df_hierarchical['cluster'] = cluster_df_hierarchical['cluster_desc']
+
+    INFO = images_in_clusters(cluster_df_hierarchical, data, map_file=map_file)
+        
+    if request.method == "POST":
+        if request.form["submit"] == "similar_images":
+                       
+            
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+
+        if request.form["submit"] == "both_images":
+        
+            imges_uids_sim = []
+            for form_key in request.form.keys():
+                if "ckb" in form_key:
+                    imges_uids_sim.append(request.form[form_key])
+            cluster_num = int(request.form["form"])
+            
+            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
     
+    return render_template(
+        "clusters.html",
+        data=INFO,
+        cold_start=request.method == "GET",
+    )
+
 @app.route("/clusters_embeds", methods=["GET", "POST"])
 def clusters_embeds():
     
