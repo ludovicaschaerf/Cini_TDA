@@ -46,7 +46,7 @@ def train_replica(
     #)
 
     triplet_loss = nn.TripletMarginWithDistanceLoss(
-        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, reduction="sum"
+        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.02, reduction="sum"
     )
 
     # optimizer = torch.optim.Adagrad(model.parameters(), lr=1e-6) # to be optimized lr and method
@@ -62,7 +62,7 @@ def train_replica(
     losses = []
     scores = []
 
-    data = pd.read_csv(data_dir + "data_wga_cini_45000.csv").drop(
+    data = pd.read_csv(data_dir + "data.csv").drop(
         columns=["Unnamed: 0", "level_0"]
     )
     
@@ -82,6 +82,7 @@ def train_replica(
     scores.append(get_scores(embeddings, train_test, data))
 
     make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=10, n=num_c)
+    print(pd.read_csv(data_dir + "dataset/abc_train_" + str(10) + ".csv")['C'].nunique())
     loaders["train"].__reload__(data_dir + "dataset/abc_train_" + str(10) + ".csv")
     loaders["val"].__reload__(data_dir + "dataset/abc_val_" + str(10) + ".csv")
     train_dataloaders = {
@@ -168,8 +169,7 @@ def train_replica(
 
                 old_score = scores[-1][-1]
                 scores.append(get_scores(embeddings, train_test, data))
-                print('boh', scores[-1][-1])
-
+                
             # deep copy the model
             if phase == "val" and (epoch_loss < best_loss or scores[-1][-1] > old_score):  # needs to be changed to val
                 print("Model updating! Best loss so far")

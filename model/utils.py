@@ -247,7 +247,7 @@ def show_images(img_names):
 
 def preprocess_image(img_name, resolution=480):
     img = Image.open(img_name)
-    img = img.convert('RGB')
+    #img = img.convert('RGB')
     tfms = transforms.Compose(
         [
             transforms.ToTensor(),
@@ -260,6 +260,7 @@ def preprocess_image(img_name, resolution=480):
             ),
             transforms.RandomHorizontalFlip(p=0.3),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            transforms.Grayscale(num_output_channels=1),
         ]
     )
     return tfms(img).unsqueeze(0)
@@ -348,7 +349,7 @@ def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=
         list_downloaded = list(train_test["img1"]) + list(train_test["img2"])
 
     for i in tqdm(range(train_test.shape[0])):
-        if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded) and (train_test["set"][i] == 'test'):
+        if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded) and (train_test["set"][i] in ['val', 'test']):
             list_theo = (
                 list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
                 + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
