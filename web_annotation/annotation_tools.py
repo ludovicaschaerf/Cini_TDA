@@ -11,16 +11,16 @@ sys.path.insert(0, "../model/")
 from utils import show_suggestions, make_tree_orig, find_most_similar_no_theo, catch
 
 def setup(data_dir='/scratch/students/schaerf/', path='/home/guhennec/scratch/2021_Cini/TopologicalAnalysis_Cini/data/', size=1000):
-    data = pd.read_csv(data_dir + 'dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+    data = pd.read_csv(data_dir + 'original/dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
     #embeddings = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
-    embeddings = np.load(data_dir + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy',allow_pickle=True)
+    embeddings = np.load(data_dir + '01-05-2022/resnext-101_epoch_901-05-2022_19%3A45%3A03.npy',allow_pickle=True)
     embeddings = embeddings[np.isin(embeddings[:,0], list(data["uid"].unique()))]
     print(embeddings.shape)
     tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
 
     print(len(reverse_map))
 
-    with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
+    with open(data_dir + 'rerank/uid2path.pkl', 'rb') as outfile:
         uid2path = pickle.load(outfile)
 
     return embeddings, data, tree, reverse_map, uid2path

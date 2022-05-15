@@ -9,44 +9,63 @@ from utils_clusters import *
 
 parser = argparse.ArgumentParser(description='Model specifics')
 parser.add_argument('--n_subset', dest='n_subset',
-                    type=int, help='', default=10000)
+                    type=int, help='', default=1000)
 parser.add_argument('--n_show', dest='n_show',
                     type=int, help='', default=10)
-
-parser.add_argument('--path', dest='path',
-                    type=str, help='', default="../data/")
 
 parser.add_argument('--data_dir', dest='data_dir',
                     type=str, help='', default="../data/")
 
+parser.add_argument('--subfolder', dest='subfolder',
+                    type=str, help='', default="01-05-2022/")
+
 parser.add_argument('--precomputed', dest='precomputed',
                     type=bool, help='', default=True)
 
+parser.add_argument('--type', dest='type',
+                    type=str, help='', default='kmeans')
+
 parser.add_argument('--eps', dest='eps',
-                    type=float, help='', default=0.5)
+                    type=float, help='', default=1500)
 
 args = parser.parse_args()
 
+# image retrieval
 embeddings, data, tree, reverse_map, uid2path = setup(
-    data_dir=args.data_dir, path=args.path, size=args.n_subset
+    data_dir=args.data_dir, path=args.data_dir, size=args.n_subset
 )
 
-cluster_df_rerank = make_clusters(args.data_dir)
-data_rerank = pd.read_csv(args.data_dir + 'dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+# reranking
+cluster_df_rerank = make_clusters(args.data_dir+'rerank/')
+data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+
+# morphograph
+morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
+
+if args.subfolder == '01-05-2022/':
+    data_file = 'original/dedup_data_sample_wga.csv' 
+    embeds_file = args.subfolder + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy' 
+    map_file = args.subfolder + 'map2pos.pkl'
+    if args.type == 'kmeans':
+        cluster_file = args.subfolder + 'clusters_kmeans_'+str(int(args.eps))+'_01-05-2022_19'
+    elif args.type == 'dbscan':
+        cluster_file = args.subfolder + 'clusters_'+str(args.eps)+'_01-05-2022_19'
+    
+    hierarchical_file = args.subfolder + 'dedup_data_sample_wga_cluster.csv'
+
+    data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
+
+    
+elif args.subfolder == '10-05-2022/':
+
+    data_file = args.subfolder + 'data_wga_cini_45000.csv' 
+    embeds_file = args.subfolder + 'resnext-101_epoch_410-05-2022_10%3A11%3A05.npy'
+    map_file = args.subfolder + 'map2pos_10-05-2022.pkl'
+    cluster_file = args.subfolder + 'clusters_'+str(args.eps)+'_10-05-2022_19'
+
+    data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 
-data_file = 'data_wga_cini_45000.csv' 
-embeds_file = 'resnext-101_epoch_410-05-2022_10%3A11%3A05.npy'
-map_file = 'map2pos_10-05-2022.pkl'
-cluster_file = 'clusters_'+str(args.eps)+'_10-05-2022_19'
-
-data_file = 'dedup_data_sample_wga.csv' 
-embeds_file = 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy' 
-map_file = 'map2pos.pkl'
-cluster_file = 'clusters_'+str(args.eps)+'_01-05-2022_19'
-
-
-hierarchical_file = 'dedup_data_sample_wga_cluster.csv'
 
 if args.precomputed:
     with open(args.data_dir + cluster_file + '.pkl', 'rb') as infile:
@@ -54,9 +73,6 @@ if args.precomputed:
 else:
     cluster_df = make_clusters_embeddings(args.data_dir, dist=args.eps, data_file=data_file, embed_file=embeds_file)
 
-#data = pd.read_csv(args.data_dir + data_file).drop(columns=['Unnamed: 0', 'level_0'])
-
-data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
 
 
 app = Flask(__name__)
@@ -107,33 +123,27 @@ def annotate_images():
         cold_start=request.method == "GET",
     )
 
+
+@app.route("/morphograph", methods=["GET", "POST"])
+def morpho_show():
+    
+    INFO = images_in_clusters(morpho, morpho, map_file=map_file)
+        
+
+    return render_template(
+        "clusters.html",
+        data=INFO,
+        cold_start=request.method == "GET",
+    )
+
+
 @app.route("/clusters_rerank", methods=["GET", "POST"])
 def clusters():
     
-    INFO = images_in_clusters(cluster_df_rerank, data_rerank)
+    INFO = images_in_clusters(cluster_df_rerank, data_rerank, map_file=map_file)
         
-    if request.method == "POST":
-        if request.form["submit"] == "similar_images":
-                       
-            
-            imges_uids_sim = []
-            for form_key in request.form.keys():
-                if "ckb" in form_key:
-                    imges_uids_sim.append(request.form[form_key])
-            cluster_num = int(request.form["form"])
-            
-            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+    annotate_store(INFO, cluster_file, args.data_dir)
 
-        if request.form["submit"] == "both_images":
-        
-            imges_uids_sim = []
-            for form_key in request.form.keys():
-                if "ckb" in form_key:
-                    imges_uids_sim.append(request.form[form_key])
-            cluster_num = int(request.form["form"])
-            
-            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
-    
     return render_template(
         "clusters.html",
         data=INFO,
@@ -146,28 +156,9 @@ def clusters_hierarchical():
     cluster_df_hierarchical['cluster'] = cluster_df_hierarchical['cluster_desc']
 
     INFO = images_in_clusters(cluster_df_hierarchical, data, map_file=map_file)
-        
-    if request.method == "POST":
-        if request.form["submit"] == "similar_images":
-                       
-            
-            imges_uids_sim = []
-            for form_key in request.form.keys():
-                if "ckb" in form_key:
-                    imges_uids_sim.append(request.form[form_key])
-            cluster_num = int(request.form["form"])
-            
-            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
 
-        if request.form["submit"] == "both_images":
-        
-            imges_uids_sim = []
-            for form_key in request.form.keys():
-                if "ckb" in form_key:
-                    imges_uids_sim.append(request.form[form_key])
-            cluster_num = int(request.form["form"])
-            
-            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
+    
+    annotate_store(INFO, cluster_file, args.data_dir) 
     
     return render_template(
         "clusters.html",
@@ -179,29 +170,8 @@ def clusters_hierarchical():
 def clusters_embeds():
     
     INFO = images_in_clusters(cluster_df, data, map_file=map_file)
-    if request.method == "POST":
-        if request.form["submit"] == "similar_images":
-                       
-            
-            imges_uids_sim = []
-            for form_key in request.form.keys():
-                if "ckb" in form_key:
-                    imges_uids_sim.append(request.form[form_key])
-            cluster_num = int(request.form["form"])
-            
-            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
-
-        if request.form["submit"] == "both_images":
-        
-            imges_uids_sim = []
-            for form_key in request.form.keys():
-                if "ckb" in form_key:
-                    imges_uids_sim.append(request.form[form_key])
-            cluster_num = int(request.form["form"])
-            
-            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
-
-
+    
+    annotate_store(INFO, cluster_file, args.data_dir)
     return render_template(
         "clusters.html",
         data=INFO,
@@ -213,28 +183,8 @@ def clusters_embeds():
 def visual_clusters():
     
     INFO = images_in_clusters(cluster_df, data, map_file=map_file)
-    if request.method == "POST":
-        if request.form["submit"] == "similar_images":
-                       
-            
-            imges_uids_sim = []
-            for form_key in request.form.keys():
-                if "ckb" in form_key:
-                    imges_uids_sim.append(request.form[form_key])
-            cluster_num = int(request.form["form"])
-            
-            store_morph_cluster(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
-
-        if request.form["submit"] == "both_images":
-        
-            imges_uids_sim = []
-            for form_key in request.form.keys():
-                if "ckb" in form_key:
-                    imges_uids_sim.append(request.form[form_key])
-            cluster_num = int(request.form["form"])
-            
-            store_morph_cluster_negatives(imges_uids_sim, INFO[int(request.form["form"])], cluster_num, cluster_file, data_dir=args.data_dir)
-
+    
+    annotate_store(INFO, cluster_file, args.data_dir)
 
     return render_template(
         "visual_clusters.html",
