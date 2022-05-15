@@ -247,20 +247,21 @@ def show_images(img_names):
 
 def preprocess_image(img_name, resolution=480):
     img = Image.open(img_name)
-    #img = img.convert('RGB')
+    img = img.convert('RGB')
     tfms = transforms.Compose(
         [
             transforms.ToTensor(),
             transforms.Resize((resolution+120, resolution+120)),
             transforms.RandomResizedCrop((resolution, resolution), ),
             transforms.ColorJitter(
-                   brightness=0.3,
-                   contrast=0.3,
-                   saturation=0.3
+                   brightness=0.5,
+                   contrast=0.5,
+                   saturation=0.5
             ),
-            transforms.RandomHorizontalFlip(p=0.3),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=20),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            transforms.Grayscale(num_output_channels=1),
+            #transforms.Grayscale(num_output_channels=3),
         ]
     )
     return tfms(img).unsqueeze(0)

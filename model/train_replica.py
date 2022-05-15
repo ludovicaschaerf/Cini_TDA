@@ -22,7 +22,7 @@ def catch_error(path, model, device, resolution):
         return get_embedding(preprocess_image_test(path, resolution=resolution), model, device=device)
     except Exception as e:
         print(e)
-        return 0
+        return np.zeros(2048)
 
 def train_replica(
     model,
@@ -67,15 +67,23 @@ def train_replica(
     )
     
     
-    embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
-    embeddings = np.array(embeddings, dtype=np.ndarray)
-    np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+    # embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    # embeddings = np.array(embeddings, dtype=np.ndarray)
+    # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    # noww = '30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
-    # embeddings = np.load(
-    #     data_dir + "embeddings/" + model_name + "_epoch_1" + noww + ".npy",
-    #     allow_pickle=True,
-    # )
+    noww = '13-05-2022_14:35:30' #'30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
+    embeddings = np.load(
+        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+        allow_pickle=True,
+    )
+
+    print(embeddings.shape)
+    for i, emb in enumerate(embeddings[:, 1]):
+        if type(emb) == int:
+            #print(emb)
+            embeddings[i,1] = np.zeros(2048)
+    
+    print(embeddings.shape)
 
     train_test = data[data["set"].notnull()].reset_index()
 
@@ -167,6 +175,15 @@ def train_replica(
                     embeddings,
                 )
 
+                print(embeddings.shape)
+                for i, emb in enumerate(embeddings[:, 1]):
+                    if type(emb) == int:
+                        print(emb)
+                        embeddings[i,1] = np.zeros(2048)
+                
+                print(embeddings.shape)
+  
+                
                 old_score = scores[-1][-1]
                 scores.append(get_scores(embeddings, train_test, data))
                 
