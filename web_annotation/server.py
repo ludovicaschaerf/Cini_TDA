@@ -46,10 +46,11 @@ if args.subfolder == '01-05-2022/':
     data_file = 'original/dedup_data_sample_wga.csv' 
     embeds_file = args.subfolder + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy' 
     map_file = args.subfolder + 'map2pos.pkl'
-    if args.type == 'kmeans':
-        cluster_file = args.subfolder + 'clusters_kmeans_'+str(int(args.eps))+'_01-05-2022_19'
-    elif args.type == 'dbscan':
+    
+    if args.type == 'dbscan':
         cluster_file = args.subfolder + 'clusters_'+str(args.eps)+'_01-05-2022_19'
+    else:
+        cluster_file = args.subfolder + 'clusters_'+args.type+'_'+str(int(args.eps))+'_01-05-2022_19'
     
     hierarchical_file = args.subfolder + 'dedup_data_sample_wga_cluster.csv'
 
@@ -70,8 +71,11 @@ elif args.subfolder == '10-05-2022/':
 if args.precomputed:
     with open(args.data_dir + cluster_file + '.pkl', 'rb') as infile:
         cluster_df = pickle.load(infile)
+        cluster_df = cluster_df.sort_values('cluster')
+    
 else:
     cluster_df = make_clusters_embeddings(args.data_dir, dist=args.eps, data_file=data_file, embed_file=embeds_file)
+
 
 
 
@@ -127,6 +131,7 @@ def annotate_images():
 @app.route("/morphograph", methods=["GET", "POST"])
 def morpho_show():
     
+
     INFO = images_in_clusters(morpho, morpho, map_file=map_file)
         
 
@@ -168,12 +173,14 @@ def clusters_hierarchical():
 
 @app.route("/clusters_embeds", methods=["GET", "POST"])
 def clusters_embeds():
+
+    INFO, cluster = annotate_store_page(cluster_df, data, map_file) 
+   
+    annotate_store_special(cluster_df, data, map_file, cluster_file, args.data_dir) 
     
-    INFO = images_in_clusters(cluster_df, data, map_file=map_file)
-    
-    annotate_store(INFO, cluster_file, args.data_dir)
     return render_template(
         "clusters.html",
+        item=cluster,
         data=INFO,
         cold_start=request.method == "GET",
     )
@@ -195,4 +202,4 @@ def visual_clusters():
 
 if __name__ == "__main__":
 
-    app.run(port=8080)
+    app.run(port=8080, debug=True)
