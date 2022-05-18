@@ -86,8 +86,8 @@
 <body>
     <div class="row">
 
-        <div class="col-4 mt-1 ms-1" id="cluster" style="height:800px;width:100%;position:relative"></div>
-        <div class="col-8 mt-1">
+        <div class="col-3 mt-1 ms-4 me-4" id="cluster" style="height:800px;width:100%;position:relative"></div>
+        <div class="col-9 mt-1">
             <div style="height:800px;width:100%;position:relative">
                 <canvas id="canvas"></canvas>
             </div>
@@ -176,7 +176,7 @@
 
                     for (const [key, value] of Object.entries(cluster_objs)) {
                         if (value[1] != undefined) {
-                            let pos = [-1 + (parseFloat(value[1].split('$$')[3])) / 20, -1 + (parseFloat(value[1].split('$$')[4])) / 50, 0];
+                            let pos = [-1 + (parseFloat(value[1].split('$$')[3])) / 15, -1 + (parseFloat(value[1].split('$$')[4])) / 40, 0];
                             let image = value[1].split('$$')[1];
 
                             let description = value[1].split('$$')[0];
@@ -218,11 +218,6 @@
                                                 }
 
                                             };
-
-                                            div.innerHTML += '</div><br><br><div><input id="form" name="form" style="visibility: hidden;" type="text" value=' +
-                                                cluster + '><button id="submit_similar_imges" type="submit" name="submit" value="similar_images" class="btn btn-primary mt-2"> ' +
-                                                'Confirm Similar Images </button> <button id="submit_both_imges" type="submit" name="submit" value="both_images" class="btn btn-primary mt-2">' +
-                                                'Confirm Similar and Different Images</button></form>'
 
                                             console.log(div);
 

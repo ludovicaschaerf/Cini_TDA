@@ -25,7 +25,6 @@ def catch(x, uid2path):
         return [0,0]
 
 def annotate_store_page(cluster_df, data, map_file):
-    
     if request.method == "POST":
         if request.form["submit"] in ["text_search", "random_search"]:
             if request.form["submit"] == "text_search":
@@ -45,13 +44,10 @@ def annotate_store_page(cluster_df, data, map_file):
         cluster = cluster_df.groupby('cluster').first().sample(1).index.values
       
     INFO = images_in_clusters(cluster_df[cluster_df['cluster'].isin(cluster)], data, map_file=map_file)
-    
     return INFO, ','.join([str(cl) for cl in cluster])
 
 def annotate_store_special(cluster_df, data, map_file, cluster_file, data_dir):
-    
     if request.method == "POST":
-    
         if request.form["submit"] in ["similar_images", "both_images", "wrong", "correct", "general_images", "both_general_images", ]:
             cluster = [int(elt) for elt in request.form["item"].split(',')]
             INFO = images_in_clusters(cluster_df[cluster_df['cluster'].isin(cluster)], data, map_file=map_file)
@@ -82,13 +78,8 @@ def annotate_store_special(cluster_df, data, map_file, cluster_file, data_dir):
             
 
 def annotate_store(INFO, cluster_file, data_dir):
-    
     if request.method == "POST":
-    
         if request.form["submit"] in ["similar_images", "both_images", "wrong"]:
-            
-            #INFO = images_in_clusters(cluster_df[cluster_df['cluster'].isin(cluster)], data, map_file=map_file)
-    
             imges_uids_sim = []
             for form_key in request.form.keys():
                 if "ckb" in form_key:
@@ -112,6 +103,12 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
 
     if not 'annotated' in data.columns:
         data['annotated'] = ''
+
+    if not 'Country' in data.columns:
+        data['Country'] = ''
+        
+    if not 'City' in data.columns:
+        data['City'] = ''
     
     cluster_df['pos'] = cluster_df['uid'].apply(lambda x: catch(x, map2pos))
     for cluster in cluster_df['cluster'].unique():
@@ -120,7 +117,28 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
             rows = cluster_df[cluster_df['cluster'] == cluster]
             for row in rows.iterrows():
                 row_2 = data[data['uid'] == row[1]['uid']]
-                info_2 = str(row_2["AuthorOriginal"].values[0]) + '\n ' + str(row_2["Description"].values[0]) + '\n ' + str(row_2["BeginDate"].values[0]) + '\n ' + str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]) + '\n ' + str(row_2["set"].values[0]) 
+                if str(row_2["set"].values[0]) != 'nan':
+                    if '2022' in str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]):
+                        info_2 = '<b style="color:red">' + str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
+                            ) + '<br> ' + str(row_2["BeginDate"].values[0]
+                            ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
+                            ) + '<br> ' + str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]
+                            ) + ' ' + str(row_2["set"].values[0]
+                            ) + '</b>'    
+                    else:
+                        info_2 = '<b>' + str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
+                            ) + '<br> ' + str(row_2["BeginDate"].values[0]
+                            ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
+                            ) + '<br> ' + str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]
+                            ) + ' ' + str(row_2["set"].values[0]
+                            ) + '</b>' 
+                else:
+                    info_2 = str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
+                            ) + '<br> ' + str(row_2["BeginDate"].values[0]
+                            ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
+                            ) + '<br> ' + str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]
+                            ) + ' ' + str(row_2["set"].values[0]
+                            )
                 uid = row[1]['uid']
                 pos = row[1]['pos']    
                 if 'ImageURL' in cluster_df.columns:
@@ -166,7 +184,7 @@ def make_clusters(data_dir='../data/', uid2path_file = 'uid2path.pkl', final_fil
 def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000.csv', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy', dist=0.5, min_n=2, type_clustering='dbscan'):
     
     data = pd.read_csv(data_dir + data_file)
-    embeds = np.load(data_dir + embed_file, allow_pickle=True) #embedding_no_pool/)
+    embeds = np.load(data_dir + embed_file, allow_pickle=True) 
     uids = list(data['uid'])
     
     uid2path = {}
@@ -174,7 +192,7 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         uid2path[row['uid']] = row['path']
     
     if type_clustering=='dbscan':
-        db = DBSCAN(eps=dist, min_samples=min_n, metric='euclidean').fit(np.vstack(embeds[:,1])) #0.52 best so far
+        db = DBSCAN(eps=dist, min_samples=min_n, metric='euclidean').fit(np.vstack(embeds[:,1])) #0.51 best so far
         classes = db.labels_
     elif type_clustering=='gaussian_mixture':
         embeddings_new = PCA(n_components=20).fit_transform(
@@ -234,7 +252,7 @@ def convert_to_json(data_agg):
 
 
 def get_2d_pos(data_dir='../data/', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy'):
-    embeds = np.load(data_dir + embed_file, allow_pickle=True) #embedding_no_pool/)
+    embeds = np.load(data_dir + embed_file, allow_pickle=True) 
     
     embeddings_new = TSNE(
             n_components=2
@@ -245,7 +263,7 @@ def get_2d_pos(data_dir='../data/', embed_file='resnext-101_epoch_410-05-2022_10
     return map2pos
 
 def store_wrong_cluster(info_cluster, cluster_num, cluster_file, data_dir='/scratch/students/schaerf/annotation/'):
-    morpho = pd.read_csv(data_dir + 'morphograph_wrong_clusters.csv')
+    morpho = pd.read_csv(data_dir + 'morphograph_clusters.csv')
 
     now = datetime.now()
     now = now.strftime("%d-%m-%Y_%H:%M:%S")
@@ -266,10 +284,10 @@ def store_wrong_cluster(info_cluster, cluster_num, cluster_file, data_dir='/scra
     update = pd.concat([morpho, new_morphs], axis=0)
     print(update[['uid_connection', 'type', 'cluster']].tail())
     print(morpho.shape, update.shape)
-    update.to_csv(data_dir + 'morphograph_wrong_clusters.csv', index=False)
+    update.to_csv(data_dir + 'morphograph_clusters.csv', index=False)
 
 def store_correct_cluster(info_cluster, cluster_num, cluster_file, data_dir='/scratch/students/schaerf/annotation/'):
-    morpho = pd.read_csv(data_dir + 'morphograph_wrong_clusters.csv')
+    morpho = pd.read_csv(data_dir + 'morphograph_clusters.csv')
 
     now = datetime.now()
     now = now.strftime("%d-%m-%Y_%H:%M:%S")
@@ -285,7 +303,7 @@ def store_correct_cluster(info_cluster, cluster_num, cluster_file, data_dir='/sc
     update = pd.concat([morpho, new_morphs], axis=0)
     print(update[['uid_connection', 'type', 'cluster']].tail())
     print(morpho.shape, update.shape)
-    update.to_csv(data_dir + 'morphograph_wrong_clusters.csv', index=False)
+    update.to_csv(data_dir + 'morphograph_clusters.csv', index=False)
 
 def store_morph_cluster(imges_uids_sim, info_cluster, cluster_num, cluster_file, data_dir='/scratch/students/schaerf/annotation/', type_ann='POSITIVE'):
     morpho = pd.read_csv(data_dir + 'morphograph_clusters.csv')
@@ -333,6 +351,21 @@ def store_morph_cluster_negatives(imges_uids_sim, info_cluster, cluster_num, clu
     print(update[['uid_connection', 'type', 'cluster']].tail())
     print(morpho.shape, update.shape)
     update.to_csv(data_dir + 'morphograph_clusters.csv', index=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### deprecated
 def draw_clusters(cluster_num, cluster_df, data):

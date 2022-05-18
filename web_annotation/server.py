@@ -44,6 +44,8 @@ morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
 
 if args.subfolder == '01-05-2022/':
     data_file = 'original/dedup_data_sample_wga.csv' 
+    data_file = 'data_sample_0.csv' 
+
     embeds_file = args.subfolder + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy' 
     map_file = args.subfolder + 'map2pos.pkl'
     
@@ -66,7 +68,7 @@ elif args.subfolder == '10-05-2022/':
 
     data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
-
+data_norm = pd.read_csv(args.data_dir + data_file)
 
 if args.precomputed:
     with open(args.data_dir + cluster_file + '.pkl', 'rb') as infile:
@@ -174,7 +176,7 @@ def clusters_hierarchical():
 @app.route("/clusters_embeds", methods=["GET", "POST"])
 def clusters_embeds():
 
-    INFO, cluster = annotate_store_page(cluster_df, data, map_file) 
+    INFO, cluster = annotate_store_page(cluster_df, data_norm, map_file) 
    
     annotate_store_special(cluster_df, data, map_file, cluster_file, args.data_dir) 
     
