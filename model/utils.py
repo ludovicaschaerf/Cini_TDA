@@ -419,7 +419,7 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
     final['B_path'] = final['B'].apply(lambda x: catch(x, uid2path))
     final['C_path'] = final['C'].apply(lambda x: catch(x, uid2path))
     
-    final = final[final['C_path'].notnull() & final['A_path'].notnull() & final['B_path'].notnull()]
+    final = final[final['C_path'].notnull() & final['A_path'].notnull() & final['B_path'].notnull()].sample(frac=0.5)
     print(final.shape)
     print(final.tail())
 
