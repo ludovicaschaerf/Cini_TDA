@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from torch.optim import lr_scheduler
 import torch.nn.functional as F
 
+from custom_loss import TripletMarginWithDistanceLossCustom
 import time
 from datetime import datetime
 import copy
@@ -45,8 +46,9 @@ def train_replica(
      #   margin=0.0001, reduction="mean"  # to be optimized margin
     #)
 
-    triplet_loss = nn.TripletMarginWithDistanceLoss(
-        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, reduction="sum"
+    triplet_loss = TripletMarginWithDistanceLossCustom(
+        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.1, 
+        beta=0.4, reduction="sum", swap=True, intra=True
     )
 
     # optimizer = torch.optim.Adagrad(model.parameters(), lr=1e-6) # to be optimized lr and method
@@ -54,6 +56,7 @@ def train_replica(
     optimizer = torch.optim.Adam(
         model.parameters(), lr=1e-6
     )  # to be optimized lr and method
+    
     scheduler = lr_scheduler.StepLR(
         optimizer, step_size=10, gamma=0.01
     )  # to be optimized step and gamma
