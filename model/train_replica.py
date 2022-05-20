@@ -47,8 +47,8 @@ def train_replica(
     #)
 
     triplet_loss = TripletMarginWithDistanceLossCustom(
-        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.1, 
-        beta=0.4, reduction="sum", swap=True, intra=True
+        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, 
+        beta=0.05, reduction="sum", swap=True, intra=True
     )
 
     # optimizer = torch.optim.Adagrad(model.parameters(), lr=1e-6) # to be optimized lr and method
