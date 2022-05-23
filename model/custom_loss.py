@@ -68,7 +68,7 @@ def triplet_margin_with_distance_loss_custom(
         negative_dist = torch.min(negative_dist, swap_dist)
 
     if intra:
-        output = torch.clamp(positive_dist - negative_dist + margin + positive_dist - beta, min=0.0)
+        output = torch.clamp(positive_dist - negative_dist + margin + torch.clamp(positive_dist - beta, min=0.0), min=0.0)
     else:
         output = torch.clamp(positive_dist - negative_dist + margin, min=0.0)
 

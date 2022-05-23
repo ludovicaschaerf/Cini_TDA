@@ -48,7 +48,7 @@ def train_replica(
 
     triplet_loss = TripletMarginWithDistanceLossCustom(
         distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, 
-        beta=0.05, reduction="sum", swap=True, intra=True
+        beta=0.12, reduction="sum", swap=True, intra=True
     )
 
     # optimizer = torch.optim.Adagrad(model.parameters(), lr=1e-6) # to be optimized lr and method
@@ -61,22 +61,23 @@ def train_replica(
         optimizer, step_size=10, gamma=0.01
     )  # to be optimized step and gamma
 
-    best_loss = 10000000
+    best_loss = 100
     losses = []
     scores = []
 
     data = pd.read_csv(data_dir + "data_sample.csv")
     
     
-    embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
-    embeddings = np.array(embeddings, dtype=np.ndarray)
-    np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+    # embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+    # embeddings = np.array(embeddings, dtype=np.ndarray)
+    # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    # noww = '13-05-2022_14:35:30' #'30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
-    # embeddings = np.load(
-    #     data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
-    #     allow_pickle=True,
-    # )
+    noww = '19-05-2022_10:33:39' 
+    #'13-05-2022_14:35:30' #'30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
+    embeddings = np.load(
+        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+        allow_pickle=True,
+    )
 
     print(embeddings.shape)
     for i, emb in enumerate(embeddings[:, 1]):
