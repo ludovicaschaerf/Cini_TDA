@@ -42,16 +42,11 @@ def train_replica(
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
 
-    #triplet_loss = nn.TripletMarginLoss(
-     #   margin=0.0001, reduction="mean"  # to be optimized margin
-    #)
 
     triplet_loss = TripletMarginWithDistanceLossCustom(
         distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, 
         beta=0.12, reduction="sum", swap=True, intra=True
     )
-
-    # optimizer = torch.optim.Adagrad(model.parameters(), lr=1e-6) # to be optimized lr and method
     
     optimizer = torch.optim.Adam(
         model.parameters(), lr=1e-6
