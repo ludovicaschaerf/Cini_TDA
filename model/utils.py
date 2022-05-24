@@ -428,7 +428,7 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
         print(epoch)
         final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train_' + str(epoch) + '.csv')
         final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test_' + str(epoch) + '.csv')
-        final[final['set'] == 'val'].reset_index().to_csv(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
+        final[final['set'] == 'val'].sample(frac=0.1).reset_index().to_csv(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
     else:
         print('why are you there?')
         final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train.csv')

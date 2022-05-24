@@ -45,7 +45,7 @@ def train_replica(
 
     triplet_loss = TripletMarginWithDistanceLossCustom(
         distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, 
-        beta=0.12, reduction="sum", swap=True, intra=True
+        beta=0.13, reduction="sum", swap=True, intra=True
     )
     
     optimizer = torch.optim.Adam(
@@ -67,10 +67,10 @@ def train_replica(
     # embeddings = np.array(embeddings, dtype=np.ndarray)
     # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    noww = '19-05-2022_10:33:39' 
+    noww = '23-05-2022_17:14:25' #'19-05-2022_10:33:39' 
     #'13-05-2022_14:35:30' #'30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
     embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+        data_dir + "embeddings/" + model_name + "_epoch_4" + noww + ".npy",
         allow_pickle=True,
     )
 
@@ -166,7 +166,7 @@ def train_replica(
                     + "embeddings/"
                     + model_name
                     + "_epoch_"
-                    + str(epoch)
+                    + str(epoch+5)
                     + now
                     + ".npy",
                     embeddings,
