@@ -26,16 +26,18 @@ def catch(x, uid2path):
 
 def annotate_store_page(cluster_df, data, map_file):
     if request.method == "POST":
-        if request.form["submit"] in ["text_search", "random_search"]:
+        if request.form["submit"] in ["text_search", "random_search", "next_search"]:
             if request.form["submit"] == "text_search":
-                cluster = [request.form["item"]]
-            else:
+                cluster = [int(elt) for elt in request.form["item"].split(',')]
+            elif request.form["submit"] == "random_search":
                 if 'cluster_size' in cluster_df.columns:
                     print('correct')
                     cluster = cluster_df[cluster_df['cluster_size'] > 1].groupby('cluster').first().sample(1).index.values    
                 else:
                     cluster = cluster_df.groupby('cluster').first().sample(1).index.values
-                print(cluster)
+                    print(cluster)
+            else:
+                cluster = [int(elt) + 1 for elt in request.form["item"].split(',')]
 
             print(cluster_df[cluster_df['cluster'].isin(cluster)].shape)
         else:
@@ -141,11 +143,14 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
                             )
                 uid = row[1]['uid']
                 pos = row[1]['pos']    
-                if 'ImageURL' in cluster_df.columns:
-                        if 'html' in row[1]['ImageURL']: 
-                            image = row[1]['ImageURL'].split('html')[0]+'art'+row[1]['ImageURL'].split('html')[1] +'jpg'
-                        else:
-                            image = row[1]['ImageURL']
+                
+                if 'ImageURL' in data.columns:
+                    url = row_2['ImageURL'].values[0]
+                    if 'html' in url: 
+                            
+                        image = url.split('html')[0]+'art'+url.split('html')[1] +'jpg'
+                    else:
+                        image = url
                 elif 'WGA' in row[1]['path']:
                     drawer = '/'.join(row[1]['path'].split('/')[6:]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
                     image = f'http://www.wga.hu/art/{drawer}.jpg'
@@ -181,7 +186,9 @@ def make_clusters(data_dir='../data/', uid2path_file = 'uid2path.pkl', final_fil
 
     return clusters
 
-def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000.csv', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy', dist=0.5, min_n=2, type_clustering='dbscan'):
+
+
+def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000.csv', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy', dist=0.13, min_n=2, type_clustering='dbscan'):
     
     data = pd.read_csv(data_dir + data_file)
     embeds = np.load(data_dir + embed_file, allow_pickle=True) 
@@ -191,8 +198,10 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
     for i, row in data.iterrows():
         uid2path[row['uid']] = row['path']
     
+
     if type_clustering=='dbscan':
-        db = DBSCAN(eps=dist, min_samples=min_n, metric='euclidean').fit(np.vstack(embeds[:,1])) #0.51 best so far
+        
+        db = DBSCAN(eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
         classes = db.labels_
     elif type_clustering=='gaussian_mixture':
         embeddings_new = PCA(n_components=20).fit_transform(
@@ -208,7 +217,8 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         print('dim reduction done')
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[:,1]))
         classes = km.labels_
-
+    elif type_clustering == 'mix':
+        print('remove outliers with dbscan and cluster with kmeans')
     else:
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[:,1]))
         classes = km.labels_

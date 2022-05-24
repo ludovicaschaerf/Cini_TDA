@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
+import sys
+sys.path.insert(0, "../model/")
+from utils import get_train_test_split
+
+
 def cluster_accuracy(cluster_annotations):
     cluster_info = cluster_annotations.groupby('cluster')['type'].apply(lambda x: x.value_counts()).reset_index()
     scores = {}
@@ -38,41 +43,16 @@ def novelty_score(updated_morph, cluster_file, previous_cluster='Original'):
     return scores
 
 
-def get_splits(morphograph):
-
-    positives = morphograph[morphograph["type"] == "POSITIVE"]
-    positives.columns = ["uid_connection", "img1", "img2", "type", "annotated", "cluster_file"]
-
-    print(positives['cluster_file'].value_counts())
-    # creating connected components
-    G = nx.from_pandas_edgelist(
-        positives,
-        source="img1",
-        target="img2",
-        create_using=nx.DiGraph(),
-        edge_key="uid_connection",
-    )
-    components = [x for x in nx.weakly_connected_components(G)]
-
-    # adding set specification to df
-    mapper = {it: number for number, nodes in enumerate(components) for it in nodes}
-    positives["cluster"] = positives["img1"].apply(lambda x: mapper[x])
-    positives["uid"] = positives["img1"]
-    positives["set"] = [
-        "test" if cl % 3 == 0 else "train" for cl in positives["cluster"]
-    ]
-
-    positives["set"] = [
-        "val" if cl % 6 == 0 else set_ for cl, set_ in zip(positives["cluster"], positives["set"])
-    ]
-
-    return positives
-
-
 def update_morph(data_dir):
     with open(data_dir + 'save_link_data_2018_08_02.pkl', 'rb') as f:
         morpho_graph_complete = pickle.load(f)
     morpho_graph_complete['cluster_file'] = 'Original'
+    
+    metadata = pd.read_csv(data_dir + 'data_sample.csv')
+    metadata = metadata.drop(columns=['img1', 'img2', 'type', 'annotated', 'index', 'cluster', 'set', 'uid_connection'])
+
+    ## function take what was already in train and test and preserve it (make train test split and then add the new ones)
+    positives = get_train_test_split(metadata, morpho_graph_complete)
     
     morpho_graph_clusters = pd.read_csv(data_dir + 'morphograph_clusters.csv')
     morpho_graph_clusters = morpho_graph_clusters.groupby(['img1', 'img2', 'type']).first().reset_index()
@@ -82,8 +62,6 @@ def update_morph(data_dir):
     morpho_graph_clusters = morpho_graph_clusters.drop(columns=['uid_connection', 'date', 'cluster'])
     morpho_graph_complete = pd.concat([morpho_graph_complete, morpho_graph_clusters], axis=0)
     
-    
-    positives = get_splits(morpho_graph_complete)
     print(positives.shape)
 
     positives = positives.groupby('uid_connection').first().reset_index()
@@ -92,3 +70,20 @@ def update_morph(data_dir):
     
     return positive
 
+
+def evaluate_morph(updated_morph, original_cluster='Original'):
+    morph_original = updated_morph[updated_morph['cluster_file'] == original_cluster]
+    scores = {
+        'precision': 'each cluster with a morpho how many it catches that should be together / size of cluster',
+        'recall' : 'how many it catches per cluster / how many there are to catch',
+        'accuracy' : ''
+    }
+    return scores
+
+
+def make_new_train_set():
+    return 'for each positive train with negative, if no negative, take closest one'
+
+
+def track_cluster_progression():
+    return 'check if negatives were correctly pushed away'

@@ -42,6 +42,9 @@ data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data.csv').drop(column
 # morphograph
 morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
 
+if args.type == 'kmeans':
+    args.eps = int(args.eps)
+    
 if args.subfolder == '01-05-2022/':
     data_file = 'original/dedup_data_sample_wga.csv' 
     data_file = 'data_sample_0.csv' 
@@ -59,6 +62,18 @@ if args.subfolder == '01-05-2022/':
     data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
 
     
+elif args.subfolder == '19-05-2022/':
+    data_file = 'data_sample.csv' 
+
+    embeds_file = args.subfolder + 'resnext-101_epoch_419-05-2022_10%3A33%3A39.npy' 
+    map_file = args.subfolder + 'map2pos.pkl'
+
+    cluster_file = args.subfolder + 'clusters_'+args.type+'_'+str(args.eps)+'_19-05-2022_19'
+    
+    hierarchical_file = '01-05-2022/' + 'dedup_data_sample_wga_cluster.csv'
+
+    data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
+
 elif args.subfolder == '10-05-2022/':
 
     data_file = args.subfolder + 'data_wga_cini_45000.csv' 

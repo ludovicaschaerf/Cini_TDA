@@ -156,9 +156,12 @@ def augment(image):
 
 
 def get_train_test_split(metadata, morphograph):
+    if 'cluster_file' not in morphograph.columns:
+        morphograph['cluster_file'] = 'Original'
+
 
     positives = morphograph[morphograph["type"] == "POSITIVE"]
-    positives.columns = ["uid_connection", "img1", "img2", "type", "annotated"]
+    positives.columns = ["uid_connection", "img1", "img2", "type", "annotated", "cluster_file"]
 
     # creating connected components
     G = nx.from_pandas_edgelist(
