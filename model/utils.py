@@ -254,15 +254,15 @@ def preprocess_image(img_name, resolution=480):
     tfms = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Resize((resolution+120, resolution+120)),
+            transforms.Resize((resolution+100, resolution+100)),
             transforms.RandomResizedCrop((resolution, resolution), ),
             transforms.ColorJitter(
-                   brightness=0.5,
-                   contrast=0.5,
-                   saturation=0.5
+                   brightness=0.3,
+                   contrast=0.3,
+                   saturation=0.3
             ),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=20),
+            transforms.RandomHorizontalFlip(p=0.3),
+            transforms.RandomRotation(degrees=5),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             #transforms.Grayscale(num_output_channels=3),
         ]
@@ -422,7 +422,7 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
     final['B_path'] = final['B'].apply(lambda x: catch(x, uid2path))
     final['C_path'] = final['C'].apply(lambda x: catch(x, uid2path))
     
-    final = final[final['C_path'].notnull() & final['A_path'].notnull() & final['B_path'].notnull()].sample(frac=0.5)
+    final = final[final['C_path'].notnull() & final['A_path'].notnull() & final['B_path'].notnull()]#.sample(frac=0.5)
     print(final.shape)
     print(final.tail())
 
@@ -431,7 +431,7 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
         print(epoch)
         final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train_' + str(epoch) + '.csv')
         final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test_' + str(epoch) + '.csv')
-        final[final['set'] == 'val'].reset_index().to_csv(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
+        final[final['set'] == 'val'].sample(frac=0.1).reset_index().to_csv(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
     else:
         print('why are you there?')
         final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train.csv')
