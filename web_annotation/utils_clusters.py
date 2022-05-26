@@ -41,7 +41,7 @@ def annotate_store_page(cluster_df, data, map_file):
 
             print(cluster_df[cluster_df['cluster'].isin(cluster)].shape)
         else:
-            cluster = cluster_df.groupby('cluster').first().sample(1).index.values
+            cluster = [int(elt) + 1 for elt in request.form["item"].split(',')]
     else:
         cluster = cluster_df.groupby('cluster').first().sample(1).index.values
       
@@ -188,7 +188,7 @@ def make_clusters(data_dir='../data/', uid2path_file = 'uid2path.pkl', final_fil
 
 
 
-def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000.csv', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy', dist=0.13, min_n=2, type_clustering='dbscan'):
+def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000.csv', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy', dist=0.13, min_n=2, type_clustering='dbscan', dist2=0.12):
     
     data = pd.read_csv(data_dir + data_file)
     embeds = np.load(data_dir + embed_file, allow_pickle=True) 
@@ -203,6 +203,8 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         
         db = DBSCAN(eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
         classes = db.labels_
+        labels = embeds[:,0]
+        
     elif type_clustering=='gaussian_mixture':
         embeddings_new = PCA(n_components=20).fit_transform(
             np.vstack(embeds[:, 1])
@@ -210,6 +212,8 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         print('dim reduction done')
         gm = BayesianGaussianMixture(n_components=dist).fit(embeddings_new)
         classes = gm.predict(embeddings_new)
+        labels = embeds[:,0]
+        
     elif type_clustering=='kmeans_dim':
         embeddings_new = PCA(n_components=20).fit_transform(
             np.vstack(embeds[:, 1])
@@ -217,13 +221,27 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         print('dim reduction done')
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[:,1]))
         classes = km.labels_
+        labels = embeds[:,0]
+        
     elif type_clustering == 'mix':
         print('remove outliers with dbscan and cluster with kmeans')
+        print(dist2)
+        db = DBSCAN(eps=dist2, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
+        classes = db.labels_
+        labels = embeds[:,0]
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+        uid2remove = list(clusters[clusters['cluster'] == -1]['uid'])
+        print(len(uid2remove))
+        
+        km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[~np.in1d(embeds[:, 0], uid2remove),1]))
+        classes = km.labels_
+        labels = embeds[~np.in1d(embeds[:, 0], uid2remove), 0]
+
+    
     else:
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[:,1]))
         classes = km.labels_
-
-    labels = embeds[:,0]
+        labels = embeds[:,0]
         
     clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
     print(clusters.shape)
@@ -361,12 +379,6 @@ def store_morph_cluster_negatives(imges_uids_sim, info_cluster, cluster_num, clu
     print(update[['uid_connection', 'type', 'cluster']].tail())
     print(morpho.shape, update.shape)
     update.to_csv(data_dir + 'morphograph_clusters.csv', index=False)
-
-
-
-
-
-
 
 
 

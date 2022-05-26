@@ -6,6 +6,7 @@ import json
 
 from annotation_tools import get_links, setup, store_morph
 from utils_clusters import * 
+from metrics_clusters import update_morph
 
 parser = argparse.ArgumentParser(description='Model specifics')
 parser.add_argument('--n_subset', dest='n_subset',
@@ -41,13 +42,15 @@ data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data.csv').drop(column
 
 # morphograph
 morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
+update_morph(args.data_dir)
 
-if args.type == 'kmeans':
+if args.type in ['mix','kmeans']:
     args.eps = int(args.eps)
     
 if args.subfolder == '01-05-2022/':
     data_file = 'original/dedup_data_sample_wga.csv' 
     data_file = 'data_sample_0.csv' 
+    data_file = 'data_sample.csv' 
 
     embeds_file = args.subfolder + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy' 
     map_file = args.subfolder + 'map2pos.pkl'
@@ -57,10 +60,7 @@ if args.subfolder == '01-05-2022/':
     else:
         cluster_file = args.subfolder + 'clusters_'+args.type+'_'+str(int(args.eps))+'_01-05-2022_19'
     
-    hierarchical_file = args.subfolder + 'dedup_data_sample_wga_cluster.csv'
-
-    data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
-
+    
     
 elif args.subfolder == '19-05-2022/':
     data_file = 'data_sample.csv' 
@@ -70,9 +70,23 @@ elif args.subfolder == '19-05-2022/':
 
     cluster_file = args.subfolder + 'clusters_'+args.type+'_'+str(args.eps)+'_19-05-2022_19'
     
-    hierarchical_file = '01-05-2022/' + 'dedup_data_sample_wga_cluster.csv'
+    
+elif args.subfolder == '24-05-2022/':
+    data_file = 'data_sample.csv' 
 
-    data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
+    embeds_file = args.subfolder + 'resnext-101_epoch_1324-05-2022_22%3A50%3A41.npy' 
+    map_file = args.subfolder + 'map2pos.pkl'
+
+    cluster_file = args.subfolder + 'clusters_'+args.type+'_'+str(args.eps)+'_24-05-2022_19'
+    
+elif args.subfolder == '25-05-2022/':
+    data_file = 'data_sample.csv' 
+
+    embeds_file = args.subfolder + 'resnext-101_epoch_2225-05-2022_23%3A44%3A19.npy' 
+    map_file = args.subfolder + 'map2pos.pkl'
+
+    cluster_file = args.subfolder + 'clusters_'+args.type+'_'+str(args.eps)+'_25-05-2022_19'
+
 
 elif args.subfolder == '10-05-2022/':
 
@@ -84,6 +98,9 @@ elif args.subfolder == '10-05-2022/':
     data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 data_norm = pd.read_csv(args.data_dir + data_file)
+
+hierarchical_file = '01-05-2022/' + 'dedup_data_sample_wga_cluster.csv'
+data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
 
 if args.precomputed:
     with open(args.data_dir + cluster_file + '.pkl', 'rb') as infile:

@@ -3,9 +3,11 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
+from tqdm import tqdm 
+
 import sys
 sys.path.insert(0, "../model/")
-from utils import get_train_test_split
+from utils import get_train_test_split, make_tree_orig, catch, find_most_similar_no_theo 
 
 
 def cluster_accuracy(cluster_annotations):
@@ -25,17 +27,17 @@ def cluster_accuracy(cluster_annotations):
 
 def novelty_score(updated_morph, cluster_file, previous_cluster='Original'):
     before = updated_morph[updated_morph['cluster_file'] == previous_cluster]
-    existing_clusters = before['cluster'].unique()
+    existing_clusters = before['new_cluster'].unique()
     after = updated_morph[updated_morph['cluster_file'].str.contains(cluster_file)]
-    additions = after[after['cluster'].isin(existing_clusters)]
-    new_clusters = after[~after['cluster'].isin(existing_clusters)]
+    additions = after[after['new_cluster'].isin(existing_clusters)]
+    new_clusters = after[~after['new_cluster'].isin(existing_clusters)]
 
     scores = {
         'original size': before.shape[0],
         'newly added': after.shape[0],
         'additions to existing clusters': additions.shape[0],
-        'number of clusters with new elements': additions.cluster.nunique(),
-        'new clusters' : new_clusters.cluster.nunique(),
+        'number of clusters with new elements': additions['new_cluster'].nunique(),
+        'new clusters' : new_clusters['new_cluster'].nunique(),
         'new clusters elements': new_clusters.shape[0],
         'progress': str(np.round(after.shape[0] / before.shape[0] * 100, 2)) + '%'
 
@@ -63,9 +65,12 @@ def update_morph(data_dir):
     morpho_graph_complete = pd.concat([morpho_graph_complete, morpho_graph_clusters], axis=0)
     
     print(positives.shape)
+    positives = get_new_split(metadata,positives, morpho_graph_complete)
 
     positives = positives.groupby('uid_connection').first().reset_index()
     positive = positives.groupby('uid').last().reset_index()
+    positive['old_cluster old'] = positive['cluster']
+    positive['cluster'] = positive['new_cluster']
     positive.to_csv(data_dir + 'morphograph/morpho_dataset.csv')
     
     return positive
@@ -81,8 +86,82 @@ def evaluate_morph(updated_morph, original_cluster='Original'):
     return scores
 
 
-def make_new_train_set():
-    return 'for each positive train with negative, if no negative, take closest one'
+def get_new_split(metadata, positives, morpho_update):
+
+    morpho_update = morpho_update[morpho_update["type"] == "POSITIVE"]
+    morpho_update.columns = ["uid_connection", "img1", "img2", "type", "annotated", "cluster_file"]
+
+    # creating connected components
+    G = nx.from_pandas_edgelist(
+        morpho_update,
+        source="img1",
+        target="img2",
+        create_using=nx.DiGraph(),
+        edge_key="uid_connection",
+    )
+    components = [x for x in nx.weakly_connected_components(G)]
+    
+    print(morpho_update.shape)
+
+    # merging the two files
+    positive = pd.concat(
+        [
+            positives,
+            metadata.merge(morpho_update, left_on="uid", right_on="img1", how="inner"),
+            metadata.merge(morpho_update, left_on="uid", right_on="img2", how="inner"),
+        ],
+        axis=0,
+    ).groupby('uid_connection').first().reset_index()
+
+    # adding set specification to df
+    mapper = {it: number for number, nodes in enumerate(components) for it in nodes}
+    positive["new_cluster"] = positive["uid"].apply(lambda x: mapper[x])
+
+    positive['set'] = positive['set'].fillna('no set')
+
+    old2new = {idx:set for idx, set in zip(positive.groupby('new_cluster')['set'].max().index, positive.groupby('new_cluster')['set'].max().values)}
+    positive['new set'] = positive['new_cluster'].apply(lambda x: old2new[x])
+    positive.loc[positive['new set'] == 'no set', 'new set'] = 'train'
+
+    return positive
+
+def make_new_train_set(embeddings, train_test, updated_morph, cluster_file, uid2path, data_dir='../data/'):
+    'for each positive train with negative, if no negative, take closest one'
+    after = updated_morph[updated_morph['cluster_file'].str.contains(cluster_file)]
+    print(after.shape)
+    
+    tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
+    Cs = []
+    for i in tqdm(range(train_test.shape[0])):
+        if after.loc[after['img1'] == train_test["uid"][i], :].loc[after['type'] == 'NEGATIVE', :].shape[0] > 0:
+            list_sim = list(after.loc[after['img1'] == train_test["uid"][i], :].loc[after['type'] == 'NEGATIVE', 'img2'].values)
+        else:
+            list_theo = (
+                list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
+                + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
+                + [train_test["uid"][i]]
+            )
+            list_sim = find_most_similar_no_theo(
+                train_test["uid"][i], tree, embeddings, reverse_map, list_theo, n=3
+            )
+            
+        Cs.append(list_sim)
+        
+    train_test['C'] = Cs
+
+    final = train_test[['img1', 'img2', 'C', 'set']].explode('C')
+    final.columns = ['A', 'B', 'C', 'set']
+    final['A_path'] = final['A'].apply(lambda x: catch(x, uid2path))
+    final['B_path'] = final['B'].apply(lambda x: catch(x, uid2path))
+    final['C_path'] = final['C'].apply(lambda x: catch(x, uid2path))
+    print(final.shape)
+
+    final = final[final['C_path'].notnull() & final['A_path'].notnull() & final['B_path'].notnull()]#.sample(frac=0.5)
+    print(final.shape)
+    print(final.tail())
+
+    #final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train_' + str(cluster_file.split('/')[-1]) + '.csv')
+    return final[final['set'] == 'train'] 
 
 
 def track_cluster_progression():

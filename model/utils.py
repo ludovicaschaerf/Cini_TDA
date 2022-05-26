@@ -126,8 +126,10 @@ def make_rank(uids_sim, uids_match):
 def catch(x, uid2path):
     try:
         return uid2path[x]
-    except:
+    except Exception as e:
+        #print(e)
         return np.nan
+
 
 def cosine_distance():
     ## TODO
@@ -195,6 +197,7 @@ def get_train_test_split(metadata, morphograph):
     ]
 
     return positives
+
 
 
 def remove_duplicates(metadata, morphograph):
