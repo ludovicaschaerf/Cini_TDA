@@ -25,6 +25,149 @@ def catch_error(path, model, device, resolution):
         print(e)
         return np.zeros(2048)
 
+def retrain_model(
+    model,
+    loaders,
+    dataset_sizes,
+    device="cpu",
+    effort='1',
+    data_dir="/scratch/students/schaerf/",
+    model_name="resnext-101",
+    resolution=360,
+    batch_size=8,
+):
+    since = time.time()
+    best_model_wts = copy.deepcopy(model.state_dict())
+
+
+    triplet_loss = TripletMarginWithDistanceLossCustom(
+        distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, 
+        beta=0.13, reduction="sum", swap=True, intra=True
+    )
+    
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=1e-6
+    )  # to be optimized lr and method
+    
+    scheduler = lr_scheduler.StepLR(
+        optimizer, step_size=10, gamma=0.01
+    )  # to be optimized step and gamma
+
+    scores = []
+
+    data = pd.read_csv(data_dir + "data_sample.csv")
+    data1 = pd.read_csv(data_dir + "data_retrain_1.csv").drop(columns=['level_0'])
+    
+    train_test = data[data["set"].notnull()].reset_index()
+    train_test1 = data1[data1["set"].notnull()].reset_index()
+
+    print(pd.read_csv(data_dir + "dataset/retrain_" + effort + "_train.csv")['C'].nunique())
+    loaders["train"].__reload__(data_dir + "dataset/retrain_" + effort + "_train.csv")
+    
+    train_dataloaders = {
+        x: DataLoader(loaders[x], batch_size=batch_size, shuffle=True)
+        for x in ["train"]
+    }
+
+    for param in model.modules():
+        if isinstance(param, nn.BatchNorm2d):
+            param.requires_grad = False
+
+    for epoch in range(5):
+        print(epoch)
+        phase = 'train'
+        running_loss = 0.0
+
+        for a, b, c in tqdm(train_dataloaders[phase]):
+            a = a.squeeze(1).to(device)
+            b = b.squeeze(1).to(device)
+            c = c.squeeze(1).to(device)
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward
+            # track history if only in train
+            with torch.set_grad_enabled(phase == "train"):
+                
+                # Forward pass
+                A, B, C = model(a, b, c)
+                # Compute and print loss
+                loss = triplet_loss(A, B, C)
+
+                # backward + optimize only if in training phase
+                if phase == "train":
+                    loss.backward()
+                    optimizer.step()
+
+            # statistics
+            running_loss += loss.item() * a.size(0)
+
+            if phase == "train":
+                scheduler.step()
+
+            epoch_loss = running_loss * batch_size / dataset_sizes[phase]
+            
+        print("{} Loss: {:.4f}".format(phase, epoch_loss))
+
+    if phase == 'train': #"val":
+        embeddings = [
+                [
+                    uid,
+                    catch_error(path_, model, device, resolution),
+                ]
+                for uid, path_ in tqdm(
+                    zip(data["uid"].unique(), data["path"].unique())
+                )
+        ]
+        embeddings = np.array(embeddings, dtype=np.ndarray)
+        np.save(
+                    data_dir
+                    + "embeddings/"
+                    + model_name
+                    + "_retrain_"
+                    + effort
+                    + now
+                    + ".npy",
+                    embeddings,
+            )
+
+        print(embeddings.shape)
+        scores.append(get_scores(embeddings, train_test, data))
+        scores.append(get_scores(embeddings, train_test1, data1))
+                
+        best_loss = epoch_loss
+        best_model_wts = copy.deepcopy(model.state_dict())
+
+    time_elapsed = time.time() - since
+    print(
+        "Training complete in {:.0f}m {:.0f}s".format(
+            time_elapsed // 60, time_elapsed % 60
+        )
+    )
+    print("Best train loss: {:4f}".format(best_loss))
+    
+    # load best model weights
+    model.load_state_dict(best_model_wts)
+
+    pd.DataFrame(
+        scores,
+        columns=[
+            "mean_position",
+            "mean_min_position",
+            "mean_median_position",
+            "map",
+            "recall_400",
+            "recall_200",
+            "recall_100",
+            "recall_50",
+            "recall_20",
+        ],
+    ).to_csv(data_dir + "scores/scores_retrain_" + str(now) + ".csv")
+
+    return model
+
+
 def train_replica(
     model,
     loaders,
@@ -67,10 +210,10 @@ def train_replica(
     # embeddings = np.array(embeddings, dtype=np.ndarray)
     # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
-    noww = '23-05-2022_17:14:25' #'19-05-2022_10:33:39' 
+    noww = '25-05-2022_23:44:19' #'24-05-2022_22:50:41'#'24-05-2022_10:05:12'#'23-05-2022_17:14:25' #'19-05-2022_10:33:39' 
     #'13-05-2022_14:35:30' #'30-04-2022_14:32:33' #'29-04-2022_23:38:51' #'29-04-2022_17:29:42' #'14-04-2022_08:27:32' #"06-04-2022_09:33:39"  #'04-04-2022_19:55:56' '14-04-2022_23:25:29' #
     embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_4" + noww + ".npy",
+        data_dir + "embeddings/" + model_name + "_epoch_22" + noww + ".npy",
         allow_pickle=True,
     )
 
@@ -166,7 +309,7 @@ def train_replica(
                     + "embeddings/"
                     + model_name
                     + "_epoch_"
-                    + str(epoch+5)
+                    + str(epoch+15+8)
                     + now
                     + ".npy",
                     embeddings,
