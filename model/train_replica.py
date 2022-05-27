@@ -11,12 +11,10 @@ import time
 import copy
 from tqdm import tqdm
 import pandas as pd
-# from scipy import sparse
 
 from utils import *
 
 from dataloader_replica import ReplicaDataset
-from train_replica import train_replica, retrain_model
 from model_replica import ReplicaNet
 
 from glob import glob
