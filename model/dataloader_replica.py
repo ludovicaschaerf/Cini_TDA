@@ -47,39 +47,6 @@ class ReplicaDataset(Dataset):
 
     
     def __reload__(self, csv_file):
-        #del self.data
         self.data = pd.read_csv(csv_file)
         print('reloaded data', self.data.shape)
         
-
-class TypeDataset(Dataset):
-    """Replica dataset loader. """
-
-    def __init__(self, csv_file, resolution=480):
-        """
-        Args:
-            csv_file (string): Path to the csv file with annotations. Path to train.csv or test.csv
-            root_dir (string): Directory with all the images. Path to train or test folder
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
-        self.data = pd.read_csv(csv_file)
-        self.resolution = resolution
-        
-    def __len__(self):
-        return len(self.data)
-
-    def __numclasses__(self):
-        return self.data['TypeN'].nunique()
-
-        
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        X = preprocess_image(self.data.loc[idx, "path"], resolution=self.resolution)
-        y = self.data.loc[idx, "TypeN"]
-        
-        sample = [X, y]
-
-        return sample

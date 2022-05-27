@@ -13,12 +13,6 @@ import torchvision.models as models
 import torch
 import torchvision.transforms as transforms
 
-# import imgaug as ia
-# import imgaug.augmenters as iaa
-# from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
-
-
-
 from tqdm import tqdm
 import requests
 from io import BytesIO
@@ -130,27 +124,6 @@ def catch(x, uid2path):
         #print(e)
         return np.nan
 
-
-def cosine_distance():
-    ## TODO
-    return "distant"
-
-def augment(image):
-    rotate=iaa.Affine(rotate=(-50, 30))
-    rotate_image=rotate.augment_image(image)
-    gaussian_noise=iaa.AdditiveGaussianNoise(10,20)
-    noise_image=gaussian_noise.augment_image(image)
-    crop = iaa.Crop(percent=(0, 0.3)) # crop image
-    corp_image=crop.augment_image(image)
-
-    bbs = BoundingBoxesOnImage([
-        BoundingBox(x1=10, x2=520, y1=10, y2=300)
-    ], shape=image.shape)
-
-    move=iaa.Affine(translate_percent={"x": 0.1}, scale=0.8)
-    image_aug, bbs_aug = move(image=image, bounding_boxes=bbs)
-    ia.imshow(bbs_aug.draw_on_image(image_aug, size=2))
-    #https://nanonets.com/blog/data-augmentation-how-to-use-deep-learning-when-you-have-limited-data-part-2/
     
 #########################################################
 ##### Preprocess data
@@ -286,57 +259,6 @@ def preprocess_image_test(img_name, resolution=480):
     return tfms(img).unsqueeze(0)
 
 #########################################################
-##### Model
-#########################################################
-
-
-def create_model(model_name, pooling):
-    if model_name == "resnet50":
-        model = models.resnet50(pretrained=True)
-    elif model_name == "resnet101":
-        model = models.resnet101(pretrained=True)
-    elif model_name == "resnet152":
-        model = models.resnet152(pretrained=True)
-    elif model_name == 'densenet161':
-        model = models.densenet161(pretrained=True)
-    elif model_name == 'resnext-101':
-        model = models.resnext101_32x8d(pretrained=True)
-    elif model_name == 'regnet_x_32gf':
-        model = models.regnet_y_32gf(pretrained=True)
-    elif model_name == 'vit_b_16':
-        model = models.vit_b_16(pretrained=True)
-    elif model_name == 'convnext_tiny':
-        model = models.convnext_tiny(pretrained=True)
-    elif model_name == "efficientnet0":
-        model = models.efficientnet_b0(pretrained=True)
-    elif model_name == "efficientnet7":
-        model = models.efficientnet_b7(pretrained=True)
-
-    if pooling == "avg":
-        newmodel = torch.nn.Sequential(
-            *(list(model.children())[:-2]), nn.AdaptiveAvgPool2d((1, 1))
-        )
-    elif pooling == 'max':
-        newmodel = torch.nn.Sequential(
-            *(list(model.children())[:-2]), nn.AdaptiveMaxPool2d((1, 1), )
-        )
-    
-    return newmodel
-
-def store_pretrained_embeddings(models, pools, resolutions):
-    data_dir = '/scratch/students/schaerf/'
-    data = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
-    for model in models: # ['resnext-101']'resnet50', 'efficientnet0', 'efficientnet7', 'resnet101', 'resnet152', 'densenet161', 'resnext-101', 'regnet_x_32gf', 
-        for pool in pools: #'max', ['avg'] 
-            for resolution in resolutions: #240, 480 [620]
-                print(model, pool, resolution)
-                newmodel = create_model(model, pool)
-                embeddings = [[uid, get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg', resolution), newmodel).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]
-                np.save(data_dir + 'models/' + model + '_' + pool + '_' + str(resolution) + '.npy', np.array(embeddings, dtype=np.ndarray))
-    return 'done'
-
-
-#########################################################
 ##### Evalute and create new training
 #########################################################
 
@@ -356,7 +278,8 @@ def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=
         list_downloaded = list(train_test["img1"]) + list(train_test["img2"])
 
     for i in tqdm(range(train_test.shape[0])):
-        if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded) and (train_test["set"][i] in ['val', 'test']):
+        if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded
+            ) and (train_test["set"][i] in ['val', 'test']):
             list_theo = (
                 list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
                 + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
@@ -401,7 +324,7 @@ def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=
 
     return mean_position, mean_min_position, mean_median_position, map, recall_400, recall_200, recall_100, recall_50, recall_20
 
-def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=False, n=10):
+def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=10, n=10):
     tree = make_tree_orig(embeddings)
     Cs = []
     for i in tqdm(range(train_test.shape[0])):
@@ -414,8 +337,6 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
             train_test["uid"][i], tree, embeddings, list(data["uid"].unique()), list_theo, n=n+1
         )
         Cs.append(list_sim)
-            
-
     
     train_test['C'] = Cs
 
@@ -430,17 +351,10 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
     print(final.tail())
 
     print(epoch)
-    if epoch is not False:
-        print(epoch)
-        final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train_' + str(epoch) + '.csv')
-        final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test_' + str(epoch) + '.csv')
-        final[final['set'] == 'val'].sample(frac=0.1).reset_index().to_csv(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
-    else:
-        print('why are you there?')
-        final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train.csv')
-        final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test.csv')
-        final[final['set'] == 'val'].reset_index().to_csv(data_dir + 'dataset/abc_val.csv')
-
+    final[final['set'] == 'train'].reset_index().to_csv(data_dir + 'dataset/abc_train_' + str(epoch) + '.csv')
+    final[final['set'] == 'test'].reset_index().to_csv(data_dir + 'dataset/abc_test_' + str(epoch) + '.csv')
+    final[final['set'] == 'val'].sample(frac=0.1).reset_index().to_csv(data_dir + 'dataset/abc_val_' + str(epoch) + '.csv')
+    
     return final
 
 
@@ -458,7 +372,6 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
             + [row["uid"].values[0]]
         )
     else:
-        #list_theo = [row["uid"].values[0]]
         raise Exception('File not in grountruth')
         
     sim, similarities = find_most_similar_orig(
@@ -558,7 +471,6 @@ def show_suggestions(row, embeddings, train_test, tree, reverse_map, uid2path, d
         row["uid"].values[0], tree, embeddings, reverse_map, list_theo, n=8
     )
 
-
     f, axarr = plt.subplots(2,4, figsize=(30,10))
     axarr = axarr.flatten()
     drawer = row["path"].values[0].split('/')[0]
@@ -580,4 +492,57 @@ def show_suggestions(row, embeddings, train_test, tree, reverse_map, uid2path, d
     plt.show()
     return row["uid"].values[0], sim
     
+
+
+
+#########################################################
+##### Model deprecated
+#########################################################
+
+
+def create_model(model_name, pooling):
+    if model_name == "resnet50":
+        model = models.resnet50(pretrained=True)
+    elif model_name == "resnet101":
+        model = models.resnet101(pretrained=True)
+    elif model_name == "resnet152":
+        model = models.resnet152(pretrained=True)
+    elif model_name == 'densenet161':
+        model = models.densenet161(pretrained=True)
+    elif model_name == 'resnext-101':
+        model = models.resnext101_32x8d(pretrained=True)
+    elif model_name == 'regnet_x_32gf':
+        model = models.regnet_y_32gf(pretrained=True)
+    elif model_name == 'vit_b_16':
+        model = models.vit_b_16(pretrained=True)
+    elif model_name == 'convnext_tiny':
+        model = models.convnext_tiny(pretrained=True)
+    elif model_name == "efficientnet0":
+        model = models.efficientnet_b0(pretrained=True)
+    elif model_name == "efficientnet7":
+        model = models.efficientnet_b7(pretrained=True)
+
+    if pooling == "avg":
+        newmodel = torch.nn.Sequential(
+            *(list(model.children())[:-2]), nn.AdaptiveAvgPool2d((1, 1))
+        )
+    elif pooling == 'max':
+        newmodel = torch.nn.Sequential(
+            *(list(model.children())[:-2]), nn.AdaptiveMaxPool2d((1, 1), )
+        )
+    
+    return newmodel
+
+def store_pretrained_embeddings(models, pools, resolutions):
+    data_dir = '/scratch/students/schaerf/'
+    data = pd.read_csv(data_dir + 'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
+    for model in models: # ['resnext-101']'resnet50', 'efficientnet0', 'efficientnet7', 'resnet101', 'resnet152', 'densenet161', 'resnext-101', 'regnet_x_32gf', 
+        for pool in pools: #'max', ['avg'] 
+            for resolution in resolutions: #240, 480 [620]
+                print(model, pool, resolution)
+                newmodel = create_model(model, pool)
+                embeddings = [[uid, get_embedding(preprocess_image(data_dir + 'subset/' + uid + '.jpg', resolution), newmodel).squeeze(1).squeeze(1)] for uid in tqdm(data['uid'].unique())]
+                np.save(data_dir + 'models/' + model + '_' + pool + '_' + str(resolution) + '.npy', np.array(embeddings, dtype=np.ndarray))
+    return 'done'
+
 
