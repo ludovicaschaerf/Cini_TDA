@@ -6,6 +6,7 @@ import json
 
 from annotation_tools import get_links, setup, store_morph
 from utils_clusters import * 
+from metrics_clusters import update_morph
 
 parser = argparse.ArgumentParser(description='Model specifics')
 parser.add_argument('--n_subset', dest='n_subset',
@@ -36,49 +37,31 @@ embeddings, data, tree, reverse_map, uid2path = setup(
 )
 
 # reranking
-cluster_df_rerank = make_clusters(args.data_dir+'rerank/')
+cluster_df_rerank = make_clusters_rerank(args.data_dir+'rerank/')
 data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 # morphograph
 morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
+update_morph(args.data_dir, '25-05-2022')
 
-if args.subfolder == '01-05-2022/':
-    data_file = 'original/dedup_data_sample_wga.csv' 
-    data_file = 'data_sample_0.csv' 
-
-    embeds_file = args.subfolder + 'resnext-101_epoch_901-05-2022_19%3A45%3A03.npy' 
-    map_file = args.subfolder + 'map2pos.pkl'
+# eps becomes number of clusters
+if args.type in ['mix','kmeans']:
+    args.eps = int(args.eps)
     
-    if args.type == 'dbscan':
-        cluster_file = args.subfolder + 'clusters_'+str(args.eps)+'_01-05-2022_19'
-    else:
-        cluster_file = args.subfolder + 'clusters_'+args.type+'_'+str(int(args.eps))+'_01-05-2022_19'
-    
-    hierarchical_file = args.subfolder + 'dedup_data_sample_wga_cluster.csv'
-
-    data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
-
-    
-elif args.subfolder == '10-05-2022/':
-
-    data_file = args.subfolder + 'data_wga_cini_45000.csv' 
-    embeds_file = args.subfolder + 'resnext-101_epoch_410-05-2022_10%3A11%3A05.npy'
-    map_file = args.subfolder + 'map2pos_10-05-2022.pkl'
-    cluster_file = args.subfolder + 'clusters_'+str(args.eps)+'_10-05-2022_19'
-
-    data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0'])
-
+# clustering files
+data_file = 'data_sample.csv' 
 data_norm = pd.read_csv(args.data_dir + data_file)
-
-if args.precomputed:
-    with open(args.data_dir + cluster_file + '.pkl', 'rb') as infile:
-        cluster_df = pickle.load(infile)
-        cluster_df = cluster_df.sort_values('cluster')
+embeds_file = args.subfolder + 'resnext-101_'+args.subfolder.strip('/') +'.npy' 
+map_file = args.subfolder + 'map2pos.pkl'
+cluster_file = args.subfolder + 'clusters_'+args.type+'_'+str(int(args.eps))+'_'+args.subfolder.strip('/')+'_19'
     
-else:
-    cluster_df = make_clusters_embeddings(args.data_dir, dist=args.eps, data_file=data_file, embed_file=embeds_file)
+# hierarchical files
+hierarchical_file = '01-05-2022/' + 'dedup_data_sample_wga_cluster.csv'
+data = pd.read_csv(args.data_dir + hierarchical_file).drop(columns=['Unnamed: 0', ])
 
-
+with open(args.data_dir + cluster_file + '.pkl', 'rb') as infile:
+    cluster_df = pickle.load(infile)
+    cluster_df = cluster_df.sort_values('cluster')
 
 
 app = Flask(__name__)
@@ -87,6 +70,19 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     return render_template("home.html")
+
+@app.route("/clusters_embeds", methods=["GET", "POST"])
+def clusters_embeds():
+
+    INFO, cluster = show_results_button(cluster_df, data_norm, map_file) 
+    annotate_store(cluster_df, data, map_file, cluster_file, args.data_dir) 
+    
+    return render_template(
+        "clusters.html",
+        item=cluster,
+        data=INFO,
+        cold_start=request.method == "GET",
+    )
 
 
 @app.route("/annotate", methods=["GET", "POST"])
@@ -136,7 +132,6 @@ def morpho_show():
 
     INFO = images_in_clusters(morpho, morpho, map_file=map_file)
         
-
     return render_template(
         "clusters.html",
         data=INFO,
@@ -149,7 +144,7 @@ def clusters():
     
     INFO = images_in_clusters(cluster_df_rerank, data_rerank, map_file=map_file)
         
-    annotate_store(INFO, cluster_file, args.data_dir)
+    annotate_store(cluster_df, data, map_file, cluster_file, args.data_dir)
 
     return render_template(
         "clusters.html",
@@ -159,13 +154,12 @@ def clusters():
 
 @app.route("/clusters_hierarchical", methods=["GET", "POST"])
 def clusters_hierarchical():
+    
     cluster_df_hierarchical = data.copy()
     cluster_df_hierarchical['cluster'] = cluster_df_hierarchical['cluster_desc']
 
     INFO = images_in_clusters(cluster_df_hierarchical, data, map_file=map_file)
-
-    
-    annotate_store(INFO, cluster_file, args.data_dir) 
+    annotate_store(cluster_df, data, map_file, cluster_file, args.data_dir) 
     
     return render_template(
         "clusters.html",
@@ -173,19 +167,6 @@ def clusters_hierarchical():
         cold_start=request.method == "GET",
     )
 
-@app.route("/clusters_embeds", methods=["GET", "POST"])
-def clusters_embeds():
-
-    INFO, cluster = annotate_store_page(cluster_df, data_norm, map_file) 
-   
-    annotate_store_special(cluster_df, data, map_file, cluster_file, args.data_dir) 
-    
-    return render_template(
-        "clusters.html",
-        item=cluster,
-        data=INFO,
-        cold_start=request.method == "GET",
-    )
 
 
 @app.route("/visual_clusters", methods=["GET", "POST"])
@@ -193,7 +174,7 @@ def visual_clusters():
     
     INFO = images_in_clusters(cluster_df, data, map_file=map_file)
     
-    annotate_store(INFO, cluster_file, args.data_dir)
+    annotate_store(cluster_df, data, map_file, cluster_file, args.data_dir)
 
     return render_template(
         "visual_clusters.html",

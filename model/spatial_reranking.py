@@ -25,7 +25,6 @@ def preprocess_image_test(img_name, resolution=480):
     tfms = transforms.Compose(
         [
             transforms.ToTensor(),
-            # transforms.RandomResizedCrop((resolution, resolution), ),
             transforms.Resize((resolution, resolution)),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -112,9 +111,6 @@ def rerank_spatial(uid, sims, uid2path, similarities=False):
     
     print(pool_Cs[0].shape)
     
-    #pool = mp.Pool(mp.cpu_count() - 20)
-    #ranks = pool.starmap(match_feature_maps_simple, [(pool_A, np.moveaxis(pool_c.squeeze(0).cpu().detach().numpy(), 0, -1)) for pool_c in pool_Cs])
-    #pool.close()
     
     ranks = [match_feature_maps_simple(pool_A, np.moveaxis(pool_c.squeeze(0).cpu().detach().numpy(), 0, -1)) for pool_c in tqdm(pool_Cs)]
     sort_arr = np.argsort(ranks)
@@ -135,22 +131,6 @@ def sim_matrix_rerank(embeds):
     
     index = embeds[:, 0]
     return sim_matrix, index
-
-
-# def process_row(x):
-#     output = np.empty_like(values)
-#     for i, y in enumerate(values):
-#         output[i] = match_feature_maps_simple(x, y)
-#     return output
-
-
-# def sim_matrix_rerank_parallel(embeds):
-#     values = np.vstack(embeds[1, :])
-#     with Pool() as pool:
-#         sim_matrix = np.array(pool.map(process_row, values))
-#     index = embeds[0, :]
-#     return sim_matrix, index
-
 
 ### from benoit's code
 
