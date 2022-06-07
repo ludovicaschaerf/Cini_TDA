@@ -27,15 +27,20 @@ now = datetime.now()
 now = now.strftime("%d-%m-%Y_%H:%M:%S")
 print(now)
 
-def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c, retrain):
+def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c, retrain, continue_train, effort):
+    if device == 'cuda':
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu") # cuda requires batch size of 4
+    else:
+        device='cpu'
     
     model = ReplicaNet(model_name, device)
     
-    noww = '25-05-2022_23:44:19'
+    noww = '25-05-2022_23:44:19' #'30-05-2022_17:15:00' 
 
-    if data_dir + "models/model_weights_" + noww + model_name in glob(data_dir + "models/*"):
-       print("loaded from previously stored weights")
-       model.load_state_dict(torch.load(data_dir + "models/model_weights_" + noww + model_name))
+    if continue_train:
+        if data_dir + "models/model_weights_" + noww + model_name in glob(data_dir + "models/*"):
+            print("loaded from previously stored weights")
+            model.load_state_dict(torch.load(data_dir + "models/model_weights_" + noww + model_name))
 
     with open(data_dir + 'uid2path.pkl', 'rb') as outfile:
         uid2path = pickle.load(outfile)
@@ -46,42 +51,39 @@ def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c
     )
     
     optimizer = torch.optim.Adam(
-        model.parameters(), lr=1e-6
+        model.parameters(), lr=1e-6, weight_decay=1e-5
     )  
     
     scheduler = lr_scheduler.StepLR(
-        optimizer, step_size=10, gamma=0.01
+        optimizer, step_size=1000, gamma=0.01
     )  
-
     
-    
-    if device == 'cuda':
-        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu") # cuda requires batch size of 4
-    else:
-        device='cpu'
     
     # embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
     # embeddings = np.array(embeddings, dtype=np.ndarray)
     # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
 
     embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_22" + noww + ".npy",
+        data_dir + "embeddings/" + model_name + "_epoch_19" + noww + ".npy",
         allow_pickle=True,
     )
 
     if retrain:
-        datasets = {x: ReplicaDataset(data_dir + 'dataset/retrain_1_'  + x + '.csv', data_dir, x, resolution) for x in ['train', 'val']}
+        datasets = {x: ReplicaDataset(data_dir + 'dataset/retrain_'+str(effort)+'_'  + x + '.csv', data_dir, x, resolution) for x in ['train', 'val']}
         
-        data = pd.read_csv(data_dir + "data_retrain_1.csv").drop(columns=['level_0'])
+        data = pd.read_csv(data_dir + "data_retrain_"+str(effort)+".csv").drop(columns=['level_0'])
+        data['path'] = data['uid'].apply(lambda x: uid2path[x])
+
+        print(data.head())
         train_test = data[data["set"].notnull()].reset_index()
 
-        model = train_replica(
+        model = train_replica_f(
             model, datasets, data, train_test, triplet_loss, optimizer, scheduler, embeddings, uid2path,
             batch_size=batch_size, num_epochs=num_epochs, num_c=num_c, resolution=resolution, device=device, 
             retrain=retrain, model_name=model_name,  data_dir=data_dir
         )
         
-        torch.save(model.state_dict(), data_dir + "models/model_weights_retrain_" + now + model_name)
+        torch.save(model.state_dict(), data_dir + "models/model_weights_retrain_" + now + model_name + effort)
 
     else:
         data = pd.read_csv(data_dir + "data_sample.csv")
@@ -92,36 +94,15 @@ def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c
         
         datasets = {x: ReplicaDataset(data_dir + 'dataset/abc_'+ x +'_10.csv', data_dir, x, resolution) for x in ['train', 'val']}
         
-        model = train_replica(
+        model = train_replica_f(
             model, datasets, data, train_test, triplet_loss, optimizer, scheduler, embeddings, uid2path,
             batch_size=batch_size, num_epochs=num_epochs, num_c=num_c, resolution=resolution, device=device, 
             retrain=retrain, model_name=model_name,  data_dir=data_dir
         )
         torch.save(model.state_dict(), data_dir + "models/model_weights_" + now + model_name)
 
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Model specifics')
-    parser.add_argument('--data_dir', dest='data_dir', type=str, help='Directory where data is stored', default='/scratch/students/schaerf/')
-    parser.add_argument('--batch_size', dest='batch_size', type=int, help='Batch size', default=4)
-    parser.add_argument('--num_epochs', dest='num_epochs', type=int, help='Number of epochs', default=5)
-    parser.add_argument('--num_c', dest='num_c', type=int, help='Number of c', default=10)
-    parser.add_argument('--resolution', dest='resolution', type=int, help='Image resolution', default=320)
-    parser.add_argument('--device', dest='device', type=str, help='Device to use for computation', default='cuda')
-    parser.add_argument('--model_name', dest='model_name', type=str, help='Name of pretrained model to use', default='resnext-101')
-    parser.add_argument('--retrain', dest='retrain', type=bool, default=False)
-    args = parser.parse_args()
-    main(data_dir=args.data_dir, batch_size=args.batch_size, num_epochs=args.num_epochs, 
-         model_name=args.model_name, device=args.device, resolution=args.resolution, 
-         num_c=args.num_c, retrain=args.retrain)
-    
-    
-
-
-
-def train_replica(
-    model, datasets, data, train_test, loss, optimizer, scheduler, embeddings, uid2path,
+def train_replica_f(
+    model, datasets, data, train_test, triplet_loss, optimizer, scheduler, embeddings, uid2path,
     batch_size=4, num_epochs=5, num_c=5, resolution=320, device='cuda', 
     retrain=False, model_name='resnext-101',  data_dir='/scratch/students/schaerf'
 ):
@@ -130,7 +111,7 @@ def train_replica(
         
     train_dataloaders = {
         x: DataLoader(datasets[x], batch_size=batch_size, shuffle=True)
-        for x in ["train"]
+        for x in ["train", "val"]
     }
         
     since = time.time()
@@ -178,7 +159,7 @@ def train_replica(
                     # Forward pass
                     A, B, C = model(a, b, c)
                     # Compute and print loss
-                    loss = loss(A, B, C)
+                    loss = triplet_loss(A, B, C)
 
                     # backward + optimize only if in training phase
                     if phase == "train":
@@ -259,6 +240,30 @@ def catch_error(path, model, device, resolution):
     except Exception as e:
         print(e)
         return np.zeros(2048)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Model specifics')
+    parser.add_argument('--data_dir', dest='data_dir', type=str, help='Directory where data is stored', default='/scratch/students/schaerf/')
+    parser.add_argument('--batch_size', dest='batch_size', type=int, help='Batch size', default=4)
+    parser.add_argument('--num_epochs', dest='num_epochs', type=int, help='Number of epochs', default=5)
+    parser.add_argument('--num_c', dest='num_c', type=int, help='Number of c', default=10)
+    parser.add_argument('--resolution', dest='resolution', type=int, help='Image resolution', default=320)
+    parser.add_argument('--device', dest='device', type=str, help='Device to use for computation', default='cuda')
+    parser.add_argument('--model_name', dest='model_name', type=str, help='Name of pretrained model to use', default='resnext-101')
+    parser.add_argument('--retrain', dest='retrain', type=bool, default=False)
+    parser.add_argument('--continue_train', dest='continue_train', type=bool, default=False)
+    parser.add_argument('--effort', dest='effort', type=int, default=1)
+    
+    args = parser.parse_args()
+    main(data_dir=args.data_dir, batch_size=args.batch_size, num_epochs=args.num_epochs, 
+         model_name=args.model_name, device=args.device, resolution=args.resolution, 
+         num_c=args.num_c, retrain=args.retrain, continue_train=args.continue_train, effort=args.effort)
+    
+    
+
+
+
 
 
 #'24-05-2022_22:50:41'#'24-05-2022_10:05:12'#'23-05-2022_17:14:25' #'19-05-2022_10:33:39' 
