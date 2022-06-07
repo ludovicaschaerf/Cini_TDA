@@ -13,7 +13,7 @@ from utils import show_suggestions, make_tree_orig, find_most_similar_no_theo, c
 def setup(data_dir='/scratch/students/schaerf/', path='/home/guhennec/scratch/2021_Cini/TopologicalAnalysis_Cini/data/', size=1000):
     data = pd.read_csv(data_dir + 'original/dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
     #embeddings = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
-    embeddings = np.load(data_dir + '01-05-2022/resnext-101_epoch_901-05-2022_19%3A45%3A03.npy',allow_pickle=True)
+    embeddings = np.load(data_dir + '01-05-2022/resnext-101_01-05-2022.npy',allow_pickle=True)
     embeddings = embeddings[np.isin(embeddings[:,0], list(data["uid"].unique()))]
     print(embeddings.shape)
     tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
