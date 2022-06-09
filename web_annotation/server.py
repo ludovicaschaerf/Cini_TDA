@@ -42,7 +42,7 @@ cluster_df_rerank = make_clusters_rerank(args.data_dir+'rerank/')
 data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 # morphograph
-# update_morph(args.data_dir, '-2022')
+update_morph(args.data_dir, '-2022')
 morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
 
 # eps becomes number of clusters
@@ -56,6 +56,9 @@ if args.subfolder == '28-05-2022/':
     data_file = args.subfolder + 'data_retrain_1.csv'
 if args.subfolder == '01-06-2022/':
     data_file = args.subfolder + 'data_retrain_2.csv'
+if args.subfolder == '07-06-2022/':
+    data_file = 'data.csv' 
+    
 
 data_norm = pd.read_csv(args.data_dir + data_file)
 embeds_file = args.subfolder + 'resnext-101_'+args.subfolder.strip('/') +'.npy' 
@@ -82,7 +85,7 @@ def home():
 def clusters_embeds():
 
     INFO, cluster = show_results_button(cluster_df, data_norm, map_file) 
-    annotate_store(cluster_df, data, map_file, cluster_file, args.data_dir) 
+    annotate_store(cluster_df, data_norm, map_file, cluster_file, args.data_dir) 
     
     return render_template(
         "clusters.html",
