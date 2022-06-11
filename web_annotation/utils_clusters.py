@@ -17,6 +17,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
 from sklearn.mixture import BayesianGaussianMixture
+from sklearn.cluster import SpectralClustering
 
 def catch(x, uid2path):
     try:
@@ -161,7 +162,11 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
                              min_n=2, type_clustering='dbscan', dist2=0.12):
     
     data = pd.read_csv(data_dir + data_file)
+    data = data.groupby(['Description', 'AuthorOriginal']).first().reset_index()
     embeds = np.load(data_dir + embed_file, allow_pickle=True) 
+    print(embeds.shape)
+    embeds = embeds[np.in1d(embeds[:, 0], list(data['uid'])),:]
+    print(embeds.shape)
     uids = list(data['uid'])
     
     uid2path = {}
@@ -169,11 +174,40 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         uid2path[row['uid']] = row['path']
     
     if type_clustering=='dbscan':
-        
-        db = DBSCAN(eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
-        classes = db.labels_
-        labels = embeds[:,0]
-        
+        if embeds.shape[0] > 80000:
+            uid2remove = []
+            for i in [(0, 10000),(10000, 20000), (20000, 30000), (30000, 40000),
+                       (40000, 50000), (50000, 60000), (60000, 70000),(70000, embeds.shape[0])]:
+                print(i)
+                if i[1] == 80000:
+                    emb = np.concatenate((np.vstack(embeds[i[0]:i[1],1]), np.vstack(embeds[-5000:,1])), axis=0)
+                    labels = np.concatenate((embeds[i[0]:i[1],0], embeds[-5000:,0]), axis=0)
+                
+                else:
+                    emb = np.vstack(embeds[i[0]:i[1],1])
+                    labels = embeds[i[0]:i[1],0]
+                print(emb.shape)
+                db = DBSCAN(eps=dist2, min_samples=1, metric='cosine').fit(emb) #0.51 best so far
+                classes = db.labels_
+                clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+                print(clusters['cluster'].value_counts())
+                uid2remove.append(list(clusters[clusters['cluster'] == -1]['uid']))
+                print(len(uid2remove[-1]))
+
+            uid2remove = [i for in_ in uid2remove for i in in_ ]
+            new_embs = embeds[~np.in1d(embeds[:, 0], uid2remove),1]
+            print(new_embs.shape)
+            db = DBSCAN(eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(new_embs)) #0.51 best so far
+            classes = db.labels_
+            labels = embeds[~np.in1d(embeds[:, 0], uid2remove), 0]
+
+            
+
+        else:   
+            db = DBSCAN(eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
+            classes = db.labels_
+            labels = embeds[:,0]
+            
     elif type_clustering=='gaussian_mixture':
         embeddings_new = PCA(n_components=20).fit_transform(
             np.vstack(embeds[:, 1])
@@ -206,6 +240,13 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         classes = km.labels_
         labels = embeds[~np.in1d(embeds[:, 0], uid2remove), 0]
 
+    elif type_clustering == 'spectral_clustering':
+        clustering = SpectralClustering(n_clusters=dist,
+                                        assign_labels='cluster_qr',
+                                        random_state=0,
+                                        ).fit(np.vstack(embeds[:,1]))
+        classes = clustering.labels_
+        labels = embeds[:,0]
     
     else:
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[:,1]))
@@ -240,7 +281,7 @@ def get_2d_pos(data_dir='../data/', embed_file='resnext-101_epoch_410-05-2022_10
 
 
 def store_wrong_positive_cluster(info_cluster, cluster_num, cluster_file, data_dir='/scratch/students/schaerf/annotation/', wrong=True):
-    morpho = pd.read_csv(data_dir + 'morphograph_clusters.csv')
+    morpho = pd.read_csv(data_dir + 'morphograph_clusters_new.csv')
 
     now = datetime.now()
     now = now.strftime("%d-%m-%Y_%H:%M:%S")
@@ -253,9 +294,9 @@ def store_wrong_positive_cluster(info_cluster, cluster_num, cluster_file, data_d
     
     to_add = []
     for info in info_cluster:
-        if info[0][-3:] != 'nan':
+        if info[0][-3:] in ['ain', 'est', 'val']:
             for info_2 in info_cluster:
-                if info_2[0][-3:] == 'nan':
+                if not info_2[0][-3:] in ['ain', 'est', 'val']:
                         to_add.append([info[2][:16]+info_2[2][16:], info[2], info_2[2], tpl[0], now, cluster_file, cluster_num])
         else:
             for info_2 in info_cluster:
@@ -267,11 +308,11 @@ def store_wrong_positive_cluster(info_cluster, cluster_num, cluster_file, data_d
     update = pd.concat([morpho, new_morphs], axis=0)
     print(update[['uid_connection', 'type', 'cluster']].tail())
     print(morpho.shape, update.shape)
-    update.to_csv(data_dir + 'morphograph_clusters.csv', index=False)
+    update.to_csv(data_dir + 'morphograph_clusters_new.csv', index=False)
 
 
 def store_morph_cluster(imges_uids_sim, info_cluster, cluster_num, cluster_file, data_dir='/scratch/students/schaerf/annotation/', type_ann=['POSITIVE', 'NEGATIVE'], negatives=False):
-    morpho = pd.read_csv(data_dir + 'morphograph_clusters.csv')
+    morpho = pd.read_csv(data_dir + 'morphograph_clusters_new.csv')
     now = datetime.now()
     now = now.strftime("%d-%m-%Y_%H:%M:%S")
     
@@ -279,7 +320,7 @@ def store_morph_cluster(imges_uids_sim, info_cluster, cluster_num, cluster_file,
     
     for uid in imges_uids_sim:
         for info in info_cluster:
-            if uid == info[2] and info[0][-3:] == 'nan':
+            if uid == info[2] and not info[0][-3:] in ['ain', 'est', 'val']:
                 for uid2 in imges_uids_sim:
                     if uid2 != uid:
                         to_add.append([uid[:16]+uid2[16:], uid, uid2, type_ann[0], now, cluster_file, cluster_num])
@@ -295,7 +336,7 @@ def store_morph_cluster(imges_uids_sim, info_cluster, cluster_num, cluster_file,
     update = pd.concat([morpho, new_morphs], axis=0)
     print(update[['uid_connection', 'type', 'cluster']].tail())
     print(morpho.shape, update.shape)
-    update.to_csv(data_dir + 'morphograph_clusters.csv', index=False)
+    update.to_csv(data_dir + 'morphograph_clusters_new.csv', index=False)
 
 
 

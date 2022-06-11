@@ -157,7 +157,6 @@ def get_train_test_split(metadata, morphograph):
         axis=0,
     ).reset_index()
 
-    print(positives.shape)
     # adding set specification to df
     mapper = {it: number for number, nodes in enumerate(components) for it in nodes}
     positives["cluster"] = positives["uid"].apply(lambda x: mapper[x])
@@ -262,7 +261,7 @@ def preprocess_image_test(img_name, resolution=480):
 ##### Evalute and create new training
 #########################################################
 
-def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=False):
+def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=False, set_split=['test', 'val']):
     if reverse_map:
         tree, reverse_map = make_tree_orig(embeddings, True)
     
@@ -279,7 +278,7 @@ def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=
 
     for i in tqdm(range(train_test.shape[0])):
         if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded
-            ) and (train_test["set"][i] in ['val', 'test']):
+            ) and (train_test["set"][i] in set_split):
             list_theo = (
                 list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
                 + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
