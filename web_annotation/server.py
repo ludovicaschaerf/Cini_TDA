@@ -147,10 +147,13 @@ def morpho_show():
     new_morph = new_morph[new_morph['cluster_size']>1]
     print(new_morph['cluster'].nunique())
     
-    INFO = images_in_clusters(new_morph, morpho, map_file=map_file)
-        
+    #INFO = images_in_clusters(new_morph, morpho, map_file=map_file)
+    INFO, cluster = show_results_button(new_morph, morpho, map_file) 
+    annotate_store(new_morph, morpho, map_file, 'morphograph', args.data_dir) 
+       
     return render_template(
         "clusters.html",
+        item=cluster,
         data=INFO,
         cold_start=request.method == "GET",
     )
