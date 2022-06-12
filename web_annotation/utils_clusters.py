@@ -13,11 +13,9 @@ from glob import glob
 
 
 from sklearn.decomposition import PCA
-from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, OPTICS, DBSCAN, SpectralClustering
 from sklearn.mixture import BayesianGaussianMixture
-from sklearn.cluster import SpectralClustering
 
 def catch(x, uid2path):
     try:
@@ -225,6 +223,12 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[:,1]))
         classes = km.labels_
         labels = embeds[:,0]
+
+    elif type_clustering == 'optics':
+        db = OPTICS(max_eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
+        classes = db.labels_
+        labels = embeds[:,0]
+        
         
     elif type_clustering == 'mix':
         print('remove outliers with dbscan and cluster with kmeans')
