@@ -46,7 +46,7 @@ update_morph(args.data_dir, '-2022')
 morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
 
 # eps becomes number of clusters
-if args.type in ['mix','kmeans']:
+if args.type in ['mix','kmeans', 'spectral_clustering']:
     args.eps = int(args.eps)
 
     
