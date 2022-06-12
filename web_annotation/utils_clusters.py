@@ -242,7 +242,7 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
 
     elif type_clustering == 'spectral_clustering':
         clustering = SpectralClustering(n_clusters=dist,
-                                        assign_labels='cluster_qr',
+                                        assign_labels='discretize',
                                         random_state=0,
                                         ).fit(np.vstack(embeds[:,1]))
         classes = clustering.labels_

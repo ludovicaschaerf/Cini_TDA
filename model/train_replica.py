@@ -61,7 +61,7 @@ def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c
     
     
     if predict:
-        data = pd.read_csv(data_dir + "data.csv").drop(columns=['level_0'])
+        data = pd.read_csv(data_dir + "data_all.csv").drop(columns=['level_0'])
         data = data[~data['path'].str.contains('9C')]
         train_test = data[data["set"].notnull()].reset_index()
 
