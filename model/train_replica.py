@@ -27,7 +27,7 @@ now = datetime.now()
 now = now.strftime("%d-%m-%Y_%H:%M:%S")
 print(now)
 
-def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c, retrain, continue_train, effort):
+def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c, retrain, continue_train, effort, predict):
     if device == 'cuda':
         device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu") # cuda requires batch size of 4
     else:
@@ -35,8 +35,9 @@ def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c
     
     model = ReplicaNet(model_name, device)
     
-    noww = '25-05-2022_23:44:19' #'30-05-2022_17:15:00' 
+    noww = '01-06-2022_18:09:19' #'25-05-2022_23:44:19' #'19-05-2022_10:33:39' #'30-05-2022_17:15:00' 
 
+    print(continue_train)
     if continue_train:
         if data_dir + "models/model_weights_" + noww + model_name in glob(data_dir + "models/*"):
             print("loaded from previously stored weights")
@@ -47,11 +48,11 @@ def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c
 
     triplet_loss = TripletMarginWithDistanceLossCustom(
         distance_function=lambda x, y: 1.0 - F.cosine_similarity(x, y), margin=0.01, 
-        beta=0.13, reduction="sum", swap=True, intra=True
+        beta=0.1, reduction="sum", swap=True, intra=True
     )
     
     optimizer = torch.optim.Adam(
-        model.parameters(), lr=1e-6, weight_decay=1e-5
+        model.parameters(), lr=1e-6, weight_decay=1e-4
     )  
     
     scheduler = lr_scheduler.StepLR(
@@ -59,14 +60,22 @@ def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c
     )  
     
     
-    # embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
-    # embeddings = np.array(embeddings, dtype=np.ndarray)
-    # np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+    if predict:
+        data = pd.read_csv(data_dir + "data.csv").drop(columns=['level_0'])
+        data = data[~data['path'].str.contains('9C')]
+        train_test = data[data["set"].notnull()].reset_index()
 
-    embeddings = np.load(
-        data_dir + "embeddings/" + model_name + "_epoch_19" + noww + ".npy",
-        allow_pickle=True,
-    )
+        embeddings = [[uid, catch_error(path_, model, device, resolution)] for uid, path_ in tqdm(zip(data['uid'].unique(), data['path'].unique()))]
+        embeddings = np.array(embeddings, dtype=np.ndarray)
+        np.save(data_dir + 'embeddings/' + model_name + '_epoch_none' + now + '.npy', embeddings)
+        
+        return get_scores(embeddings, train_test, data)
+
+    else:
+        embeddings = np.load(
+            data_dir + "embeddings/" + model_name + "_epoch_none" + noww + ".npy",
+            allow_pickle=True,
+        )
 
     if retrain:
         datasets = {x: ReplicaDataset(data_dir + 'dataset/retrain_'+str(effort)+'_'  + x + '.csv', data_dir, x, resolution) for x in ['train', 'val']}
@@ -83,7 +92,7 @@ def main(data_dir, batch_size, num_epochs, model_name, device, resolution, num_c
             retrain=retrain, model_name=model_name,  data_dir=data_dir
         )
         
-        torch.save(model.state_dict(), data_dir + "models/model_weights_retrain_" + now + model_name + effort)
+        torch.save(model.state_dict(), data_dir + "models/model_weights_retrain_" + now + model_name + str(effort))
 
     else:
         data = pd.read_csv(data_dir + "data_sample.csv")
@@ -234,6 +243,7 @@ def train_replica_f(
     return model
 
 
+
 def catch_error(path, model, device, resolution):
     try:
         return get_embedding(preprocess_image_test(path, resolution=resolution), model, device=device)
@@ -254,11 +264,13 @@ if __name__ == "__main__":
     parser.add_argument('--retrain', dest='retrain', type=bool, default=False)
     parser.add_argument('--continue_train', dest='continue_train', type=bool, default=False)
     parser.add_argument('--effort', dest='effort', type=int, default=1)
+    parser.add_argument('--predict', dest='predict', type=bool, default=False)
     
     args = parser.parse_args()
     main(data_dir=args.data_dir, batch_size=args.batch_size, num_epochs=args.num_epochs, 
          model_name=args.model_name, device=args.device, resolution=args.resolution, 
-         num_c=args.num_c, retrain=args.retrain, continue_train=args.continue_train, effort=args.effort)
+         num_c=args.num_c, retrain=args.retrain, continue_train=args.continue_train, 
+         effort=args.effort, predict=args.predict)
     
     
 
