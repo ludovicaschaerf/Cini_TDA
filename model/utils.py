@@ -6,7 +6,7 @@ from sklearn.neighbors import BallTree
 import umap
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 from torch import nn
 import torchvision.models as models

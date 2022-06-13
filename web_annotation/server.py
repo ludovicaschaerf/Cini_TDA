@@ -6,6 +6,7 @@ import json
 
 from annotation_tools import get_links, setup, store_morph
 from utils_clusters import * 
+from interest_metrics import add_interest_scores
 from metrics_clusters import update_morph
 
 parser = argparse.ArgumentParser(description='Model specifics')
@@ -29,6 +30,10 @@ parser.add_argument('--type', dest='type',
 parser.add_argument('--eps', dest='eps',
                     type=float, help='', default=1500)
 
+parser.add_argument('--scores', dest='scores',
+                    type=bool, help='', default=True)
+
+
 args = parser.parse_args()
 
 # image retrieval
@@ -42,8 +47,11 @@ cluster_df_rerank = make_clusters_rerank(args.data_dir+'rerank/')
 data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
 
 # morphograph
-update_morph(args.data_dir, '-2022')
-morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
+if args.scores:
+    morpho = add_interest_scores(args.data_dir, new=True)
+else:
+    update_morph(args.data_dir, '-2022', new=True)
+    morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
 
 # eps becomes number of clusters
 if args.type in ['mix','kmeans', 'spectral_clustering']:
@@ -146,18 +154,23 @@ def morpho_show():
     new_morph['cluster_size'] = new_morph['cluster'].apply(lambda x: clu2size[x])
     new_morph = new_morph[new_morph['cluster_size']>1]
     print(new_morph['cluster'].nunique())
-    
-    #INFO = images_in_clusters(new_morph, morpho, map_file=map_file)
-    INFO, cluster = show_results_button(new_morph, morpho, map_file) 
-    annotate_store(new_morph, morpho, map_file, 'morphograph', args.data_dir) 
-       
-    return render_template(
-        "clusters.html",
-        item=cluster,
-        data=INFO,
-        cold_start=request.method == "GET",
-    )
 
+    INFO = images_in_clusters(new_morph, morpho, map_file=map_file)
+       
+    if args.scores:
+        score_morph = {cluster: {col:group[col].values[0] for col in new_morph if 'scores' in col} for cluster, group in new_morph.groupby('cluster')}
+        return render_template(
+            "clusters.html",
+            data=INFO,
+            scores=score_morph,
+            cold_start=request.method == "GET",
+        )
+    else:
+        return render_template(
+            "clusters.html",
+            data=INFO,
+            cold_start=request.method == "GET",
+        )
 
 @app.route("/clusters_rerank", methods=["GET", "POST"])
 def clusters():

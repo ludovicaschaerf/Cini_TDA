@@ -15,8 +15,8 @@ def update_morph(data_dir, morph_file, new=False):
         morpho_graph_complete = pickle.load(f)
     morpho_graph_complete['cluster_file'] = 'Original'
     
-    metadata = pd.read_csv(data_dir + 'data_sample.csv')
-    metadata = metadata.drop(columns=['img1', 'img2', 'type', 'annotated', 'index', 'cluster', 'set', 'uid_connection'])
+    metadata = pd.read_csv(data_dir + 'data.csv')
+    metadata = metadata.drop(columns=['img1', 'img2', 'type', 'annotated', 'index', 'cluster', 'set', 'uid_connection', 'cluster_file'])
 
     ## function take what was already in train and test and preserve it (make train test split and then add the new ones)
     positives = get_train_test_split(metadata, morpho_graph_complete)
@@ -26,8 +26,10 @@ def update_morph(data_dir, morph_file, new=False):
     else:
         morpho_graph_clusters = pd.read_csv(data_dir + 'morphograph_clusters.csv')
     morpho_graph_clusters = morpho_graph_clusters.groupby(['img1', 'img2', 'type']).first().reset_index()
-    morpho_graph_clusters.to_csv(data_dir + 'morphograph_clusters_new.csv', index=False)
-    
+    if new:
+        morpho_graph_clusters.to_csv(data_dir + 'morphograph_clusters_new.csv', index=False)
+    else:
+        morpho_graph_clusters.to_csv(data_dir + 'morphograph_clusters.csv', index=False)
     morpho_graph_clusters = morpho_graph_clusters[morpho_graph_clusters['cluster_file'].str.contains(morph_file)]
     morpho_graph_clusters['uid'] = morpho_graph_clusters['uid_connection']
     morpho_graph_clusters['annotated'] = morpho_graph_clusters['date']

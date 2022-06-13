@@ -4,7 +4,6 @@ from io import BytesIO
 from PIL import Image
 import pickle
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -108,26 +107,23 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
             for row in rows.iterrows():
                 row_2 = data[data['uid'] == row[1]['uid']]
                 if str(row_2["set"].values[0]) != 'nan':
-                    if '2022' in str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]):
+                    if '2022' in str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0]:
                         info_2 = '<b style="color:red">' + str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
                             ) + '<br> ' + str(row_2["BeginDate"].values[0]
                             ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
-                            ) + '<br> ' + str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]
-                            ) + ' ' + str(row_2["set"].values[0]
+                            ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]
                             ) + '</b>'    
                     else:
                         info_2 = '<b>' + str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
                             ) + '<br> ' + str(row_2["BeginDate"].values[0]
                             ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
-                            ) + '<br> ' + str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]
-                            ) + ' ' + str(row_2["set"].values[0]
+                            ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]
                             ) + '</b>' 
                 else:
                     info_2 = str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
                             ) + '<br> ' + str(row_2["BeginDate"].values[0]
                             ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
-                            ) + '<br> ' + str(row_2["annotated"].fillna('').values[0].split('_')[0].split(' ')[0]
-                            ) + ' ' + str(row_2["set"].values[0]
+                            ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]
                             )
                 uid = row[1]['uid']
                 pos = row[1]['pos']    
