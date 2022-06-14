@@ -11,37 +11,38 @@
         function Sort() {
             console.log('sorting')
             if (document.getElementsByName("iconography")[0].selected) {
-                var sortedCards = $('.card').sort(function(a, b) {
+                var sortedCards = $('.show').sort(function(a, b) {
+                    console.log($(b).find('.iconography').text());
                     return $(b).find('.iconography').text().localeCompare($(a).find('.iconography').text(), false, {
                         numeric: true
                     })
                 })
             } else if (document.getElementsByName("authors")[0].selected) {
-                var sortedCards = $('.card').sort(function(a, b) {
+                var sortedCards = $('.show').sort(function(a, b) {
                     return $(b).find('.authors').text().localeCompare($(a).find('.authors').text(), false, {
                         numeric: true
                     })
                 })
             } else if (document.getElementsByName("attributes")[0].selected) {
-                var sortedCards = $('.card').sort(function(a, b) {
+                var sortedCards = $('.show').sort(function(a, b) {
                     return $(b).find('.attributes').text().localeCompare($(a).find('.attributes').text(), false, {
                         numeric: true
                     })
                 })
             } else if (document.getElementsByName("times")[0].selected) {
-                var sortedCards = $('.card').sort(function(a, b) {
+                var sortedCards = $('.show').sort(function(a, b) {
                     return $(b).find('.times').text().localeCompare($(a).find('.times').text(), false, {
                         numeric: true
                     })
                 })
             } else if (document.getElementsByName("places")[0].selected) {
-                var sortedCards = $('.card').sort(function(a, b) {
+                var sortedCards = $('.show').sort(function(a, b) {
                     return $(b).find('.places').text().localeCompare($(a).find('.places').text(), false, {
                         numeric: true
                     })
                 })
             } else {
-                var sortedCards = $('.card').sort(function(a, b) {
+                var sortedCards = $('.show').sort(function(a, b) {
                     return $(b).find('.number').text().localeCompare($(a).find('.number').text(), false, {
                         numeric: true
                     })
@@ -49,7 +50,7 @@
 
             }
 
-            $('#results').remove('.card').append(sortedCards)
+            $('#results').remove('.show').append(sortedCards)
         }
     </script>
 </head>
@@ -85,7 +86,7 @@
 
 
             {% for cluster in data.keys() %}
-            <form class="card" action="#" method="POST" class="mb-5 mt-3">
+            <form class="show" action="#" method="POST" class="mb-5 mt-3">
 
                 <div class="form-group" id="similarity_form" style="page-break-before:always">
                     <h2>Cluster {{cluster}}</h2>
@@ -141,6 +142,15 @@
 
         {% if item is defined %}
         <div class="col-2">
+            <form action="#" method="POST" class="mb-5 mt-3">
+                <h3>Search in metadata</h3>
+
+                <div class="form-group" id="text_form">
+                    <input class="form-control" placeholder="Enter text search" name="item_meta" value="{{item}}" required />
+                </div>
+
+                <button id="submit_metadata_search" type="submit" name="submit" value="metadata_search" class="btn btn-primary mt-2">Search</button>
+            </form>
             <form action="#" method="POST" enctype="multipart/form-data" id="random_search_form" class="mb-5 mt-3 ms-5">
                 <div class="form-group">
                     <h3>Random Search</h3>

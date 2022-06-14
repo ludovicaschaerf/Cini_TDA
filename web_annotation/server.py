@@ -48,9 +48,9 @@ data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data.csv').drop(column
 
 # morphograph
 if args.scores:
-    morpho = add_interest_scores(args.data_dir, new=True)
+    morpho = add_interest_scores(args.data_dir, translate=False, new=True)
 else:
-    update_morph(args.data_dir, '-2022', new=True)
+    update_morph(args.data_dir, '', new=True)
     morpho = pd.read_csv(args.data_dir + 'morphograph/morpho_dataset.csv')
 
 # eps becomes number of clusters

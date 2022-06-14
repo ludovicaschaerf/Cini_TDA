@@ -30,10 +30,17 @@ def convert_to_json(data_agg):
 
 
 def show_results_button(cluster_df, data, map_file):
+    if 'Author' not in data.columns:
+        data['Author'] = data['AuthorOriginal']
+    merged_cluster = cluster_df.merge(data[['uid', 'Author', 'AuthorOriginal', 'Description', 'annotated', 'Country', 'BeginDate']], left_on='uid', right_on='uid', how='left')
+    merged_cluster['all'] = merged_cluster['AuthorOriginal'].astype(str) + ' '+ merged_cluster['AuthorOriginal'].astype(str) + ' ' + merged_cluster['Description'].astype(str) + ' ' + merged_cluster['Country'].astype(str) + ' ' + merged_cluster['BeginDate'].astype(str) + ' ' + merged_cluster['annotated'].astype(str)
     if request.method == "POST":
-        if request.form["submit"] in ["text_search", "random_search", "next_search"]:
+        if request.form["submit"] in ["text_search", "random_search", "next_search", "metadata_search"]:
             if request.form["submit"] == "text_search":
                 cluster = [int(elt) for elt in request.form["item"].split(',')]
+            elif request.form["submit"] == "metadata_search":
+                cluster = list(merged_cluster[merged_cluster['all'].str.lower().str.contains(
+                    request.form["item_meta"].lower())]['cluster'].unique())
             elif request.form["submit"] == "random_search":
                 if 'cluster_size' in cluster_df.columns:
                     print('correct')
@@ -93,6 +100,9 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
     if not 'annotated' in data.columns:
         data['annotated'] = ''
 
+    if not 'Description (EN)' in data.columns:
+        data['Description (EN)'] = ''
+
     if not 'Country' in data.columns:
         data['Country'] = ''
         
@@ -108,19 +118,19 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
                 row_2 = data[data['uid'] == row[1]['uid']]
                 if str(row_2["set"].values[0]) != 'nan':
                     if '2022' in str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0]:
-                        info_2 = '<b style="color:red">' + str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
+                        info_2 = '<b style="color:red">' + str(row_2["Author"].values[0]) + '<br> ' + str(row_2["Description"].values[0]#) + ' ' + str(row_2["Description (EN)"].values[0]
                             ) + '<br> ' + str(row_2["BeginDate"].values[0]
                             ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
                             ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]
                             ) + '</b>'    
                     else:
-                        info_2 = '<b>' + str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
+                        info_2 = '<b>' + str(row_2["Author"].values[0]) + '<br> ' + str(row_2["Description"].values[0]#) + ' ' + str(row_2["Description (EN)"].values[0]
                             ) + '<br> ' + str(row_2["BeginDate"].values[0]
                             ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
                             ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]
                             ) + '</b>' 
                 else:
-                    info_2 = str(row_2["AuthorOriginal"].values[0]) + '<br> ' + str(row_2["Description"].values[0]
+                    info_2 = str(row_2["Author"].values[0]) + '<br> ' + str(row_2["Description"].values[0]#) + ' ' + str(row_2["Description (EN)"].values[0]
                             ) + '<br> ' + str(row_2["BeginDate"].values[0]
                             ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
                             ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]

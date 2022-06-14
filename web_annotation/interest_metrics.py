@@ -19,15 +19,19 @@ def catch_transl(func, zero=False, handle=lambda e: e, *args, **kwargs, ):
     try:
         return func(*args, **kwargs)
     except Exception as e:
+        print(e)
         if zero:
             return 0
         else:
             return e
 
-def catch_transl_2(word, uid2endesc):
+def catch_transl_2(uid, word, uid2endesc):
     '''Prevents list comprehensions from going into an error when an exception occurs'''
     try:
-        return uid2endesc[word]
+        if 'Max retries' in uid2endesc[uid]:
+            return catch_transl(lambda : GoogleTranslator(source='auto', target='en').translate(word))
+        else:
+            return uid2endesc[uid]
     except Exception as e:
         return catch_transl(lambda : GoogleTranslator(source='auto', target='en').translate(word))
 
@@ -62,13 +66,13 @@ def cluster_text(text, range_try=(100,102), hyperparam=False, num_clusters=100):
 
     labels=model.labels_
     clusters=pd.DataFrame(list(zip(text,labels)),columns=['title','cluster'])
-    #print(clusters.sort_values(by=['cluster']))
+    print(clusters.sort_values(by=['cluster']))
         
     return clusters
 
 
 def add_interest_scores(data_dir='../data/', translate=False, new=False):
-    positives = update_morph(data_dir, '-2022', new=new) 
+    positives = update_morph(data_dir, '', new=new) 
     print(positives.columns)
 
     # scores for iconography
@@ -80,35 +84,35 @@ def add_interest_scores(data_dir='../data/', translate=False, new=False):
         with open(data_dir + 'uid2desc.pkl', 'rb') as infile:
             uid2endesc = pickle.load(infile)
 
-        positives.loc[:, 'Description (EN)'] = [catch_transl_2(word, uid2endesc) 
-                                      for word in tqdm(list(positives.loc[:, 'uid'].astype(str)))]
+        positives.loc[:, 'Description (EN)'] = [catch_transl_2(uid, word, uid2endesc) 
+                                      for uid, word in tqdm(zip(list(positives.loc[:, 'uid'].astype(str)), list(positives.loc[:, 'Description'].astype(str))))]
 
         uid2endesc = {uid:desc for uid,desc in zip(positives['uid'], positives['Description (EN)'])}
 
         with open(data_dir + 'uid2desc.pkl', 'wb') as outfile:
             pickle.dump(uid2endesc, outfile)
 
-    positives['Description (EN - ref)'] = positives['Description (EN)'].astype(str).str.split('.').apply(lambda x: x[0]).apply(lambda x: x.replace('0123456789', ''))
-
-    clusters = cluster_text(positives['Description (EN - ref)'].values, num_clusters=200)
+    positives['Description (EN - ref)'] = positives['Description (EN)'].astype(str).apply(lambda x: x.replace('S.', 'S')).str.split('.').apply(lambda x: x[0]).str.split(',').apply(lambda x: x[0]).apply(lambda x: x.replace('0123456789', ''))
+    print(positives['Description (EN - ref)'].value_counts())
+    clusters = cluster_text(positives['Description (EN - ref)'].values, num_clusters=500)
     clusters['cluster_iconography'] = clusters['cluster']
 
     positives = positives.merge(clusters[['cluster_iconography']], left_index=True, right_index=True)
-    scores_iconography = {cluster: np.around(content['cluster_iconography'].nunique() / content.shape[0] + (content.shape[0] * 0.01),2) for cluster, content in positives.groupby('cluster') if content.shape[0] > 1}
+    scores_iconography = {cluster: np.around(content['cluster_iconography'].nunique() / content.shape[0] + (content.shape[0] * 0.003),2) for cluster, content in positives.groupby('cluster') if content.shape[0] > 1}
     positives['scores_iconography'] = positives['cluster'].apply(lambda x: scores_iconography[x] if x in scores_iconography.keys() else 0)
     
     ## scores for authors
     positives['AuthorClean'] = positives['Author'].str.split('(').apply(lambda x: x[0])
-    scores_authors = {cluster: np.around(content['AuthorClean'].nunique() / content.shape[0] + (content.shape[0] * 0.01),2) for cluster, content in positives.groupby('cluster') if content.shape[0] > 1}
+    scores_authors = {cluster: np.around(content[content['AuthorClean'].notnull()]['AuthorClean'].nunique() / content.shape[0] + (content.shape[0] * 0.003),2) for cluster, content in positives.groupby('cluster') if content[content['AuthorClean'].notnull()].shape[0] > 1}
     positives['scores_authors'] = positives['cluster'].apply(lambda x: scores_authors[x] if x in scores_authors.keys() else 0)
     
     positives['AuthorAttr'] = positives['AuthorOriginal'].str.split('(').apply(lambda x: x[1] if len(x)>1 else 'Original').str.split(')').apply(lambda x: x[0]).apply(lambda x: x.replace('-)', '')).apply(lambda x: x.strip(') '))
-    clusters = cluster_text(positives['AuthorAttr'].values, num_clusters=10)
+    clusters = cluster_text(positives['AuthorAttr'].values, num_clusters=5)
     clusters['cluster_attribution'] = clusters['cluster']
 
     ### scores for different attributions
     positives = positives.merge(clusters[['cluster_attribution']], left_index=True, right_index=True)
-    scores_attributions = {cluster: np.around(content['cluster_attribution'].nunique() / content.shape[0] + (content.shape[0] * 0.01),2) for cluster, content in positives.groupby('cluster') if content.shape[0] > 1}
+    scores_attributions = {cluster: np.around(content['cluster_attribution'].nunique() / content.shape[0] + (content.shape[0] * 0.003),2) for cluster, content in positives.groupby('cluster') if content.shape[0] > 1}
     positives['scores_attributions'] = positives['cluster'].apply(lambda x: scores_attributions[x] if x in scores_attributions.keys() else 0)
     
     ## scores for time
