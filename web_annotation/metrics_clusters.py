@@ -35,13 +35,16 @@ def update_morph(data_dir, morph_file, new=False):
     morpho_graph_clusters['annotated'] = morpho_graph_clusters['date']
     morpho_graph_clusters = morpho_graph_clusters.drop(columns=['uid_connection', 'date', 'cluster'])
     morpho_graph_complete = pd.concat([morpho_graph_complete, morpho_graph_clusters], axis=0)
+    uid2ann = {uid:group['annotated'].values[0] for uid, group in morpho_graph_complete.groupby('uid')}
+    morpho_graph_complete['annotated'] = morpho_graph_complete['uid'].apply(lambda x: uid2ann[x])
     
     positives = get_new_split(metadata, positives, morpho_graph_complete)
 
-    positives = positives.groupby('uid_connection').first().reset_index()
+    positives = positives.groupby(['img1', 'img2']).first().reset_index()
     #positive = positives.groupby('uid').last().reset_index()
     positives['old_cluster'] = positives['cluster']
     positives['cluster'] = positives['new_cluster']
+
     positives.to_csv(data_dir + 'morphograph/morpho_dataset.csv')
     
     return positives
@@ -65,7 +68,7 @@ def cluster_accuracy(cluster_annotations):
 def novelty_score(updated_morph, cluster_file, previous_cluster='Original'):
     before = updated_morph[updated_morph['cluster_file'] == previous_cluster]
     existing_clusters = before['new_cluster'].unique()
-    after = updated_morph[updated_morph['cluster_file'].str.contains(cluster_file)]
+    after = updated_morph[updated_morph['cluster_file'] != previous_cluster][updated_morph['cluster_file'].str.contains(cluster_file)]
     additions = after[after['new_cluster'].isin(existing_clusters)]
     new_clusters = after[~after['new_cluster'].isin(existing_clusters)]
 
@@ -82,29 +85,45 @@ def novelty_score(updated_morph, cluster_file, previous_cluster='Original'):
     return scores
 
 
-def evaluate_morph(positives, cluster_file, data_dir='../data/', set_splits=['train', 'val', 'test']):
+def evaluate_morph(positives, cluster_file, data_dir='../data/', set_splits=['train', 'val', 'test'], verbose=False):
     with open(data_dir + cluster_file , 'rb') as infile:
         cluster_df = pickle.load(infile)
     
     
     #known = list(set(positives['img1'] + positives['img2']))
     #cluster_df = cluster_df[cluster_df['uid'].isin(known)]
-
+    cluster_df = cluster_df[cluster_df['cluster'] != -1]
+    if cluster_df[cluster_df['cluster'] != 0].shape[0] > 100:
+        cluster_df = cluster_df[cluster_df['cluster'] != 0]
     scores_morph_recall = {}
     scores_morph_precision = {}
     for morph_cl, group_morph in positives.groupby('new_cluster'):
         if group_morph['set'].values[0] in set_splits:
             uids = list(set(group_morph['uid']))
-            if cluster_df[cluster_df['uid'].isin(uids)].shape[0] > 0:
-                max_num = cluster_df[cluster_df['uid'].isin(uids)].groupby('cluster').size().values[0]
-                scores_morph_recall[morph_cl] = max_num/group_morph.shape[0]
-                scores_morph_precision[morph_cl] = max_num/cluster_df[cluster_df['uid'].isin(uids)].shape[0]
-
+            if len(uids) > 1:
+                    
+                if cluster_df[cluster_df['uid'].isin(uids)].shape[0] > 1:
+                    max_cluster = cluster_df[cluster_df['uid'].isin(uids)].groupby('cluster').size().idxmax()
+                    max_num = cluster_df[cluster_df['uid'].isin(uids)].groupby('cluster').size().max()
+                    scores_morph_recall[morph_cl] = max_num/group_morph.shape[0] 
+                    if cluster_df[cluster_df['cluster'] == max_cluster].shape[0] > 1:
+                        scores_morph_precision[morph_cl] = (max_num - 1)/(cluster_df[cluster_df['cluster'] == max_cluster].shape[0]-1)
+                    else:
+                        scores_morph_precision[morph_cl] = 0
+                else:
+                    scores_morph_recall[morph_cl] = 0
+                
     scores = {
-        'precision': sum(list(scores_morph_precision.values())) / len(list(scores_morph_precision.values())),
-        'recall' : sum(list(scores_morph_recall.values())) / len(list(scores_morph_recall.values())),
+        'cluster_file': cluster_file,
+        'num_clusters': cluster_df['cluster'].nunique(),
+        'num_clustered': cluster_df[cluster_df['cluster'] != -1].shape[0],
+        
+        'mean cluster precision': np.around(sum(list(scores_morph_precision.values())) / len(list(scores_morph_precision.values())), 2),
+        'mean cluster recall' : np.around(sum(list(scores_morph_recall.values())) / len(list(scores_morph_recall.values())), 2),
     }
-    return scores
+    if verbose:
+        print(scores)
+    return scores.values()
 
 
 def get_new_split(metadata, positives, morpho_update):

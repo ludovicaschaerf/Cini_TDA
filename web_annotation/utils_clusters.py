@@ -119,21 +119,21 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
                 if str(row_2["set"].values[0]) != 'nan':
                     if '2022' in str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0]:
                         info_2 = '<b style="color:red">' + str(row_2["Author"].values[0]) + '<br> ' + str(row_2["Description"].values[0]#) + ' ' + str(row_2["Description (EN)"].values[0]
-                            ) + '<br> ' + str(row_2["BeginDate"].values[0]
-                            ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
-                            ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]
+                            ) + '<br> Estimated time of production: ' + str(row_2["BeginDate"].values[0]
+                            ) + '<br> Current location: ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
+                            ) + '<br> Annotated on: ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ', in set: ' + str(row_2["set"].values[0]
                             ) + '</b>'    
                     else:
                         info_2 = '<b>' + str(row_2["Author"].values[0]) + '<br> ' + str(row_2["Description"].values[0]#) + ' ' + str(row_2["Description (EN)"].values[0]
-                            ) + '<br> ' + str(row_2["BeginDate"].values[0]
-                            ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
-                            ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]
+                            ) + '<br> Estimated time of production: ' + str(row_2["BeginDate"].values[0]
+                            ) + '<br> Current location: ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
+                            ) + '<br> Annotated on: ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ', in set: ' + str(row_2["set"].values[0]
                             ) + '</b>' 
                 else:
                     info_2 = str(row_2["Author"].values[0]) + '<br> ' + str(row_2["Description"].values[0]#) + ' ' + str(row_2["Description (EN)"].values[0]
-                            ) + '<br> ' + str(row_2["BeginDate"].values[0]
-                            ) + '<br> ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
-                            ) + '<br> ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ' ' + str(row_2["set"].values[0]
+                            ) + '<br> Estimated time of production: ' + str(row_2["BeginDate"].values[0]
+                            ) + '<br> Current location: ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
+                            ) + '<br> Annotated on: ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ', in set: ' + str(row_2["set"].values[0]
                             )
                 uid = row[1]['uid']
                 pos = row[1]['pos']    
@@ -231,7 +231,13 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         labels = embeds[:,0]
 
     elif type_clustering == 'optics':
-        db = OPTICS(max_eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
+        # embeddings_new = PCA(n_components=500).fit_transform(
+        #     np.vstack(embeds[:, 1])
+        # )
+        # print('dim reduction done')
+        
+        # db = OPTICS(max_eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(embeddings_new)) #0.51 best so far
+        db = OPTICS(max_eps=dist, min_samples=min_n, metric='cosine').fit(embeds[:, 1]) #0.51 best so far
         classes = db.labels_
         labels = embeds[:,0]
         
@@ -246,7 +252,15 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         uid2remove = list(clusters[clusters['cluster'] == -1]['uid'])
         print(len(uid2remove))
         
+        # embeddings_new = TSNE(n_components=2).fit_transform(
+        #     np.vstack(embeds[~np.in1d(embeds[:, 0], uid2remove),1])
+        # )
+        # print('dim reduction done')
+        # km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeddings_new[:,1]))
+        
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[~np.in1d(embeds[:, 0], uid2remove),1]))
+        
+        #km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[~np.in1d(embeds[:, 0], uid2remove),1]))
         classes = km.labels_
         labels = embeds[~np.in1d(embeds[:, 0], uid2remove), 0]
 
@@ -265,7 +279,7 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         
     clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
     print(clusters.shape)
-    
+    print('stats')
     print(clusters['cluster'].value_counts(), clusters['cluster'].nunique())
     
     clusters = clusters[clusters['uid'].isin(uids)].reset_index()

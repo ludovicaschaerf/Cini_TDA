@@ -6,7 +6,7 @@ from sklearn.neighbors import BallTree
 import umap
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.manifold import TSNE
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 from torch import nn
 import torchvision.models as models
@@ -323,6 +323,46 @@ def get_scores(embeddings, train_test, data, list_downloaded=False, reverse_map=
 
     return mean_position, mean_min_position, mean_median_position, map, recall_400, recall_200, recall_100, recall_50, recall_20
 
+def get_positions(embeddings, train_test, data, list_downloaded=False, reverse_map=False, set_split=['test', 'val']):
+    if reverse_map:
+        tree, reverse_map = make_tree_orig(embeddings, True)
+    
+    else:
+        tree = make_tree_orig(embeddings)
+        reverse_map = list(data['uid'].unique())
+    Cs = []
+    Bs = []
+    pos = []
+    ranks = []
+
+    if not list_downloaded:
+        list_downloaded = list(train_test["img1"]) + list(train_test["img2"])
+
+    for i in tqdm(range(train_test.shape[0])):
+        if (train_test["img1"][i] in list_downloaded) and (train_test["img2"][i] in list_downloaded
+            ) and (train_test["set"][i] in set_split):
+            list_theo = (
+                list(train_test[train_test["img1"] == train_test["uid"][i]]["img2"])
+                + list(train_test[train_test["img2"] == train_test["uid"][i]]["img1"])
+                + [train_test["uid"][i]]
+            )
+            Bs.append(list_theo)
+            
+            list_sim = find_most_similar_orig(
+                train_test["uid"][i], tree, embeddings, reverse_map, n=min(data.shape[0], 400)
+            )
+            Cs.append(list_sim[:400])
+            matches = find_pos_matches(list_sim[:400], list_theo, how="all")
+            pos.append(matches)
+            rank = make_rank(list_sim, list_theo)
+            ranks.append(rank)
+            
+    posses = [np.mean(np.array(p)) for p in pos]
+    posses_min = [p[0] for p in pos]
+    posses_med = [np.median(np.array(p)) for p in pos]
+
+    return posses, posses_min, posses_med
+
 def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epoch=10, n=10):
     tree = make_tree_orig(embeddings)
     Cs = []
@@ -361,6 +401,37 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
 ##### Show results
 #########################################################
 
+def get_drawer(row_2, path, info=False):
+    if row_2 == path:
+        url = path
+        if 'html' in url: 
+                            
+            image = url.split('html')[0]+'art'+url.split('html')[1] +'jpg'
+        else:
+            image = url
+    elif 'ImageURL' in row_2.columns:
+        url = row_2['ImageURL'].values[0]
+        if 'html' in url: 
+                            
+            image = url.split('html')[0]+'art'+url.split('html')[1] +'jpg'
+        else:
+            image = url
+    elif 'WGA' in path:
+        drawer = '/'.join(path.split('/')[4:]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
+        image = f'http://www.wga.hu/art/{drawer}.jpg'
+    else:
+        try:
+            drawer = path.split('/')[-1].split('_')[0]
+            img = path.split('/')[-1].split('_')[1].split('.')[0]
+            image = f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg'
+            if info:
+                return drawer+'_'+img+'.jpg'
+        
+        except:
+            image = ''
+    
+    return image
+                
 
 def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data):
     
@@ -383,9 +454,8 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
     plt.suptitle('Image retrieval with embeddings of ' + row["uid"].values[0] + 
                 '\nRank: ' + ', '.join([str(x) for x in find_pos_matches(sim, list_theo, n=50)]))
     axarr = axarr.flatten()
-    drawer = row["path"].values[0].split('/')[0]
-    img = row["path"].values[0].split('_')[1].split('.')[0]
-    image_a = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+    
+    image_a = requests.get(get_drawer(row_2, row[1]['path']))
         
     axarr[0].set_facecolor('black')
     axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
@@ -400,9 +470,7 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
         info_2 = str(row_2["AuthorOriginal"].values[0]) + '\n ' + str(row_2["Description"].values[0])
     
         axarr[i+1].set_title(info_2 + '\n' + 'Similarity: ' + str(np.round((1 - similarities[i]), 2)) + ', Grountruth: ' + correct)
-        drawer = catch(sim[i], uid2path).split('/')[0]
-        img = catch(sim[i], uid2path).split('_')[1].split('.')[0]
-        image = requests.get(f'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{img}.jpg/full/300,/0/default.jpg')
+        image = requests.get(get_drawer(row_2, catch(sim[i], uid2path)))
         
         axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
         
@@ -454,6 +522,89 @@ def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data
 
     return sim[:20], sim_rerank[:20]
 
+def show_results(row, embeddings, train_test, data, uid2path, fig_dir):
+    
+    tree, reverse_map = make_tree_orig(embeddings, True)
+
+    if row["set"].values[0] in ['train', 'val', 'test']:
+        list_theo = (
+            list(train_test[train_test["img1"] == row["uid"].values[0]]["img2"])
+            + list(train_test[train_test["img2"] == row["uid"].values[0]]["img1"])
+            + [row["uid"].values[0]]
+        )
+    else:
+        raise Exception('File not in grountruth')
+        
+    sim, similarities = find_most_similar_orig(
+        row["uid"].values[0], tree, embeddings, reverse_map, n=400+1, similarities=True
+    )
+
+    print('positions of matches', find_pos_matches(sim, list_theo, n=400))
+
+    f, axarr = plt.subplots(3,4, figsize=(30,20))
+    plt.suptitle('Image retrieval with embeddings of ' + row["Author"].values[0] + '\n ' + row["Description"].values[0] + 
+                '\nRank: ' + ', '.join([str(x) for x in find_pos_matches(sim, list_theo, n=400)]))
+    axarr = axarr.flatten()
+    row_2 = data[data['uid'] == row["uid"].values[0]]
+                              
+    image_a = requests.get(get_drawer(row_2, row["uid"].values[0]))
+        
+    axarr[0].set_facecolor('black')
+    axarr[0].imshow(Image.open(BytesIO(image_a.content))) #replica_dir + 
+    axarr[0].set_title(row["Author"].values[0] + '\n ' + row["Description"].values[0] + '\n REFERENCE' + '\n ' + row["set"].values[0])
+    for i in range(len(sim[:11])):
+        if sim[i] in list_theo:
+            correct = 'CORRECT'
+        else:
+            correct = 'WRONG'
+
+        row_2 = data[data['uid'] == sim[i]]
+        info_2 = str(row_2["Author"].values[0]) + '\n ' + str(row_2["Description"].values[0])
+    
+        axarr[i+1].set_title(info_2 + '\n' + 'Similarity: ' + str(np.round((1 - similarities[i]), 2)) + ', Grountruth: ' + correct)
+        image = requests.get(get_drawer(row_2, catch(sim[i], uid2path)))
+        
+        try:
+            axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
+        except: 
+            continue
+    plt.savefig(fig_dir + row["Author"].values[0] + '_' + row["Description"].values[0] + '.jpg')
+    plt.show()
+    
+    return sim[:20]
+
+def show_clusters(cluster_num, morpho, uid2path, fig_dir, title):
+    
+    morpho_ = morpho.fillna('')
+    new_morph = morpho_.groupby('uid').first().reset_index()
+    cluster = new_morph[new_morph['cluster'] == cluster_num]
+
+    f, axarr = plt.subplots(cluster.shape[0] // 4 + 1,4, figsize=(30,(cluster.shape[0] // 4 + 1) * 8))
+    plt.suptitle(title)
+    axarr = axarr.flatten()
+    
+    for i,row in cluster.reset_index().iterrows():
+        
+        if '2022' in str(row["annotated"]):
+            info = str(row["Author"]) + '\n ' + str(row["Description"]) + '\n New Addition!'
+        else:
+            info = str(row["Author"]) + '\n ' + str(row["Description"]) + '\n ' + str(row["set"])
+        axarr[i].set_title(info)
+        image = requests.get(get_drawer(pd.DataFrame(row), catch(row['uid'], uid2path)))
+        
+        try:
+            axarr[i].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
+        except Exception as e:
+            print(get_drawer(pd.DataFrame(row), catch(row['uid'], uid2path)))
+            continue
+
+    for i in range(cluster.shape[0], (cluster.shape[0] // 4 + 1) * 4):
+        axarr[i].set_visible(False)
+    
+    if cluster.shape[0] > 0:
+        plt.savefig(fig_dir + str(cluster_num) + '_' + row["Author"].split()[0] + '_' + row["Description"].split()[0] + '.jpg')
+        plt.show()
+    
 def show_suggestions(row, embeddings, train_test, tree, reverse_map, uid2path, data):
     #replica_dir = '/mnt/project_replica/datasets/cini/'
 
