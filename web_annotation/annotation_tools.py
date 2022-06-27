@@ -10,7 +10,16 @@ sys.path.insert(0, "../model/")
 
 from utils import show_suggestions, make_tree_orig, find_most_similar_no_theo, catch
 
-def setup(data_dir='/scratch/students/schaerf/', path='/home/guhennec/scratch/2021_Cini/TopologicalAnalysis_Cini/data/', size=1000):
+def setup(data_dir='/scratch/students/schaerf/', size=1000):
+    """Function to load all the necessary files for the image retrieval annotations
+
+    Args:
+        data_dir (str, optional): . Defaults to '/scratch/students/schaerf/'.
+        size (int, optional): how many embeddings to load. Defaults to 1000.
+
+    Returns:
+        _type_: _description_
+    """    
     data = pd.read_csv(data_dir + 'original/dedup_data_sample_wga.csv').drop(columns=['Unnamed: 0', 'level_0']).sample(size) #'full_data.csv').drop(columns=['Unnamed: 0', 'level_0'])
     #embeddings = np.load(path + 'Replica_UIDs_ResNet_VGG_All.npy',allow_pickle=True)
     embeddings = np.load(data_dir + '01-05-2022/resnext-101_01-05-2022.npy',allow_pickle=True)
@@ -27,7 +36,20 @@ def setup(data_dir='/scratch/students/schaerf/', path='/home/guhennec/scratch/20
 
 
 def get_links(embeddings, data, tree, reverse_map, uid2path, uid=False, n=8):
+    """For a given image, retrieves the top most similar ones that have not yet been annotated
 
+    Args:
+        embeddings (_type_): _description_
+        data (_type_): _description_
+        tree (_type_): _description_
+        reverse_map (_type_): _description_
+        uid2path (_type_): _description_
+        uid (bool, optional): _description_. Defaults to False.
+        n (int, optional): _description_. Defaults to 8.
+
+    Returns:
+        _type_: _description_
+    """    
     train_test = data[data["set"].notnull()].reset_index() 
     if uid:
         row = data[data['uid'] == uid]
@@ -86,6 +108,13 @@ def get_links(embeddings, data, tree, reverse_map, uid2path, uid=False, n=8):
     
 
 def store_morph(uid_a, uid_sim, data_dir='/scratch/students/schaerf/annotation/'):
+    """Adds the links selected by user input into a morphograph pickled dataframe.
+
+    Args:
+        uid_a (_type_): _description_
+        uid_sim (_type_): _description_
+        data_dir (str, optional): _description_. Defaults to '/scratch/students/schaerf/annotation/'.
+    """    
     with open(data_dir + 'morphograph_update.pkl', 'rb') as f:
         morpho_complete  = pickle.load(f)
     now = datetime.now()
@@ -110,7 +139,18 @@ def main(
     uid2path=False,
     size=1000,
 ):
+    """Main file to run the application from terminal.
 
+    Args:
+        data_dir (str, optional): _description_. Defaults to "./data/".
+        embeddings (bool, optional): _description_. Defaults to False.
+        data (bool, optional): _description_. Defaults to False.
+        embds (bool, optional): _description_. Defaults to False.
+        tree (bool, optional): _description_. Defaults to False.
+        reverse_map (bool, optional): _description_. Defaults to False.
+        uid2path (bool, optional): _description_. Defaults to False.
+        size (int, optional): _description_. Defaults to 1000.
+    """    
     now = datetime.now()
     now = now.strftime("%d-%m-%Y_%H:%M:%S")
 

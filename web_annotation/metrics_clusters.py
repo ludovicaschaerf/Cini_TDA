@@ -11,9 +11,20 @@ from utils import get_train_test_split, make_tree_orig, catch, find_most_similar
 
 
 def update_morph(data_dir, morph_file, new=False):
+    """_summary_
+
+    Args:
+        data_dir (_type_): _description_
+        morph_file (_type_): _description_
+        new (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """    
     with open(data_dir + 'save_link_data_2018_08_02.pkl', 'rb') as f:
         morpho_graph_complete = pickle.load(f)
     morpho_graph_complete['cluster_file'] = 'Original'
+    morpho_graph_complete['uid'] = ['_'.join(sorted([img1, img2])) for img1,img2 in zip(morpho_graph_complete['img1'], morpho_graph_complete['img2'])]
     
     metadata = pd.read_csv(data_dir + 'data.csv')
     metadata = metadata.drop(columns=['img1', 'img2', 'type', 'annotated', 'index', 'cluster', 'set', 'uid_connection', 'cluster_file'])
@@ -25,7 +36,8 @@ def update_morph(data_dir, morph_file, new=False):
         morpho_graph_clusters = pd.read_csv(data_dir + 'morphograph_clusters_new.csv')
     else:
         morpho_graph_clusters = pd.read_csv(data_dir + 'morphograph_clusters.csv')
-    morpho_graph_clusters = morpho_graph_clusters.groupby(['img1', 'img2', 'type']).first().reset_index()
+    morpho_graph_clusters['uid_connection'] = ['_'.join(sorted([img1, img2])) for img1,img2 in zip(morpho_graph_clusters['img1'], morpho_graph_clusters['img2'])]
+    morpho_graph_clusters = morpho_graph_clusters.groupby(['uid_connection', 'type']).first().reset_index()
     if new:
         morpho_graph_clusters.to_csv(data_dir + 'morphograph_clusters_new.csv', index=False)
     else:
@@ -34,14 +46,15 @@ def update_morph(data_dir, morph_file, new=False):
     morpho_graph_clusters['uid'] = morpho_graph_clusters['uid_connection']
     morpho_graph_clusters['annotated'] = morpho_graph_clusters['date']
     morpho_graph_clusters = morpho_graph_clusters.drop(columns=['uid_connection', 'date', 'cluster'])
-    morpho_graph_complete = pd.concat([morpho_graph_complete, morpho_graph_clusters], axis=0)
-    uid2ann = {uid:group['annotated'].values[0] for uid, group in morpho_graph_complete.groupby('uid')}
-    morpho_graph_complete['annotated'] = morpho_graph_complete['uid'].apply(lambda x: uid2ann[x])
     
+    print('before adding the new ones', morpho_graph_complete[morpho_graph_complete['type'] == 'POSITIVE'].shape)
+    morpho_graph_complete = pd.concat([morpho_graph_complete, morpho_graph_clusters], axis=0)
+    print('after adding', morpho_graph_complete[morpho_graph_complete['type'] == 'POSITIVE'].shape)
+    morpho_graph_complete = morpho_graph_complete.groupby('uid').first().reset_index()
+    print('after deduplicating', morpho_graph_complete[morpho_graph_complete['type'] == 'POSITIVE'].shape)
     positives = get_new_split(metadata, positives, morpho_graph_complete)
-
-    positives = positives.groupby(['img1', 'img2']).first().reset_index()
-    #positive = positives.groupby('uid').last().reset_index()
+    
+    #positives = positives.groupby(['uid_connection']).first().reset_index()
     positives['old_cluster'] = positives['cluster']
     positives['cluster'] = positives['new_cluster']
 
@@ -49,8 +62,62 @@ def update_morph(data_dir, morph_file, new=False):
     
     return positives
 
+def get_new_split(metadata, positives, morpho_update):
+    """_summary_
+
+    Args:
+        metadata (_type_): _description_
+        positives (_type_): _description_
+        morpho_update (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
+    morpho_update = morpho_update[morpho_update["type"] == "POSITIVE"]
+    morpho_update.columns = ["uid_connection", "img1", "img2", "type", "annotated", "cluster_file"]
+
+    # creating connected components
+    G = nx.from_pandas_edgelist(
+        morpho_update,
+        source="img1",
+        target="img2",
+        create_using=nx.DiGraph(),
+        edge_key="uid_connection",
+    )
+    components = [x for x in nx.weakly_connected_components(G)]
+    
+    # merging the two files
+    positive = pd.concat(
+        [
+            positives,
+            metadata.merge(morpho_update, left_on="uid", right_on="img1", how="inner"),
+            metadata.merge(morpho_update, left_on="uid", right_on="img2", how="inner"),
+        ],
+        axis=0,
+    ).groupby('uid_connection').first().reset_index()
+
+    # adding set specification to df
+    mapper = {it: number for number, nodes in enumerate(components) for it in nodes}
+    positive["new_cluster"] = positive["uid"].apply(lambda x: mapper[x])
+
+    positive['set'] = positive['set'].fillna('no set')
+
+    old2new = {idx:set for idx, set in zip(positive.groupby('new_cluster')['set'].max().index, positive.groupby('new_cluster')['set'].max().values)}
+    positive['new set'] = positive['new_cluster'].apply(lambda x: old2new[x])
+    positive.loc[positive['new set'] == 'no set', 'new set'] = 'train'
+
+    return positive
+
 
 def cluster_accuracy(cluster_annotations):
+    """_summary_
+
+    Args:
+        cluster_annotations (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
     cluster_info = cluster_annotations.groupby('cluster')['type'].apply(lambda x: x.value_counts()).reset_index()
     scores = {}
     for cluster, group in cluster_info.groupby('cluster'):
@@ -66,6 +133,16 @@ def cluster_accuracy(cluster_annotations):
 
 
 def novelty_score(updated_morph, cluster_file, previous_cluster='Original'):
+    """_summary_
+
+    Args:
+        updated_morph (_type_): _description_
+        cluster_file (_type_): _description_
+        previous_cluster (str, optional): _description_. Defaults to 'Original'.
+
+    Returns:
+        _type_: _description_
+    """    
     before = updated_morph[updated_morph['cluster_file'] == previous_cluster]
     existing_clusters = before['new_cluster'].unique()
     after = updated_morph[updated_morph['cluster_file'] != previous_cluster][updated_morph['cluster_file'].str.contains(cluster_file)]
@@ -86,6 +163,18 @@ def novelty_score(updated_morph, cluster_file, previous_cluster='Original'):
 
 
 def evaluate_morph(positives, cluster_file, data_dir='../data/', set_splits=['train', 'val', 'test'], verbose=False):
+    """_summary_
+
+    Args:
+        positives (_type_): _description_
+        cluster_file (_type_): _description_
+        data_dir (str, optional): _description_. Defaults to '../data/'.
+        set_splits (list, optional): _description_. Defaults to ['train', 'val', 'test'].
+        verbose (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """    
     with open(data_dir + cluster_file , 'rb') as infile:
         cluster_df = pickle.load(infile)
     
@@ -126,45 +215,14 @@ def evaluate_morph(positives, cluster_file, data_dir='../data/', set_splits=['tr
     return scores.values()
 
 
-def get_new_split(metadata, positives, morpho_update):
-
-    morpho_update = morpho_update[morpho_update["type"] == "POSITIVE"]
-    morpho_update.columns = ["uid_connection", "img1", "img2", "type", "annotated", "cluster_file"]
-
-    # creating connected components
-    G = nx.from_pandas_edgelist(
-        morpho_update,
-        source="img1",
-        target="img2",
-        create_using=nx.DiGraph(),
-        edge_key="uid_connection",
-    )
-    components = [x for x in nx.weakly_connected_components(G)]
-    
-    # merging the two files
-    positive = pd.concat(
-        [
-            positives,
-            metadata.merge(morpho_update, left_on="uid", right_on="img1", how="inner"),
-            metadata.merge(morpho_update, left_on="uid", right_on="img2", how="inner"),
-        ],
-        axis=0,
-    ).groupby('uid_connection').first().reset_index()
-
-    # adding set specification to df
-    mapper = {it: number for number, nodes in enumerate(components) for it in nodes}
-    positive["new_cluster"] = positive["uid"].apply(lambda x: mapper[x])
-
-    positive['set'] = positive['set'].fillna('no set')
-
-    old2new = {idx:set for idx, set in zip(positive.groupby('new_cluster')['set'].max().index, positive.groupby('new_cluster')['set'].max().values)}
-    positive['new set'] = positive['new_cluster'].apply(lambda x: old2new[x])
-    positive.loc[positive['new set'] == 'no set', 'new set'] = 'train'
-
-    return positive
 
 def make_new_train_set(embeddings, train_test, updated_morph, cluster_file, uid2path):
     'for each positive train with negative, if no negative, take closest one'
+    """_summary_
+
+    Returns:
+        _type_: _description_
+    """    
     after = updated_morph[updated_morph['cluster_file'].str.contains(cluster_file)]
     
     tree, reverse_map = make_tree_orig(embeddings, reverse_map=True)
@@ -205,6 +263,19 @@ def make_new_train_set(embeddings, train_test, updated_morph, cluster_file, uid2
 
 
 def track_cluster_progression(cluster_annotations, cluster_file, previous_cluster_date, positives, data_dir='../data/', set_splits=['train', 'no set']):
+    """_summary_
+
+    Args:
+        cluster_annotations (_type_): _description_
+        cluster_file (_type_): _description_
+        previous_cluster_date (_type_): _description_
+        positives (_type_): _description_
+        data_dir (str, optional): _description_. Defaults to '../data/'.
+        set_splits (list, optional): _description_. Defaults to ['train', 'no set'].
+
+    Returns:
+        _type_: _description_
+    """    
     with open(data_dir + cluster_file , 'rb') as infile:
         cluster_df = pickle.load(infile)
     

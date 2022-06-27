@@ -16,24 +16,23 @@ from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans, OPTICS, DBSCAN, SpectralClustering
 from sklearn.mixture import BayesianGaussianMixture
 
-def catch(x, uid2path):
-    try:
-        return uid2path[x]
-    except:
-        return [0,0]
-
-def convert_to_json(data_agg):
-    new = ''
-    for cluster in data_agg.keys():
-        new  += '!!' + str(cluster) + '%%' + '%%'.join(['$$'.join([str(c) for c in cli]) for cli in data_agg[cluster]])
-    return new
 
 
 def show_results_button(cluster_df, data, map_file):
+    """_summary_
+
+    Args:
+        cluster_df (_type_): _description_
+        data (_type_): _description_
+        map_file (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
     if 'Author' not in data.columns:
         data['Author'] = data['AuthorOriginal']
     merged_cluster = cluster_df.merge(data[['uid', 'Author', 'AuthorOriginal', 'Description', 'annotated', 'Country', 'BeginDate']], left_on='uid', right_on='uid', how='left')
-    merged_cluster['all'] = merged_cluster['AuthorOriginal'].astype(str) + ' '+ merged_cluster['AuthorOriginal'].astype(str) + ' ' + merged_cluster['Description'].astype(str) + ' ' + merged_cluster['Country'].astype(str) + ' ' + merged_cluster['BeginDate'].astype(str) + ' ' + merged_cluster['annotated'].astype(str)
+    merged_cluster['all'] = merged_cluster['Author'].astype(str) + ' '+ merged_cluster['AuthorOriginal'].astype(str) + ' ' + merged_cluster['Description'].astype(str) + ' ' + merged_cluster['Country'].astype(str) + ' ' + merged_cluster['BeginDate'].astype(str) + ' ' + merged_cluster['annotated'].astype(str)
     if request.method == "POST":
         if request.form["submit"] in ["text_search", "random_search", "next_search", "metadata_search"]:
             if request.form["submit"] == "text_search":
@@ -62,6 +61,15 @@ def show_results_button(cluster_df, data, map_file):
 
 
 def annotate_store(cluster_df, data, map_file, cluster_file, data_dir):
+    """_summary_
+
+    Args:
+        cluster_df (_type_): _description_
+        data (_type_): _description_
+        map_file (_type_): _description_
+        cluster_file (_type_): _description_
+        data_dir (_type_): _description_
+    """    
     if request.method == "POST":
         if request.form["submit"] in ["similar_images", "both_images", "wrong", "correct", "general_images", "both_general_images", ]:
             cluster = [int(elt) for elt in request.form["item"].split(',')]
@@ -93,6 +101,17 @@ def annotate_store(cluster_df, data, map_file, cluster_file, data_dir):
             
 
 def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_10-05-2022.pkl'):
+    """_summary_
+
+    Args:
+        cluster_df (_type_): _description_
+        data (_type_): _description_
+        data_dir (str, optional): _description_. Defaults to '../data/'.
+        map_file (str, optional): _description_. Defaults to 'map2pos_10-05-2022.pkl'.
+
+    Returns:
+        _type_: _description_
+    """    
     data_agg = {}
     with open(data_dir + map_file, 'rb') as infile:
         map2pos = pickle.load(infile)
@@ -116,7 +135,7 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
             rows = cluster_df[cluster_df['cluster'] == cluster]
             for row in rows.iterrows():
                 row_2 = data[data['uid'] == row[1]['uid']]
-                if str(row_2["set"].values[0]) != 'nan':
+                if row_2.shape[0] > 0 and str(row_2["set"].values[0]) != 'nan':
                     if '2022' in str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0]:
                         info_2 = '<b style="color:red">' + str(row_2["Author"].values[0]) + '<br> ' + str(row_2["Description"].values[0]#) + ' ' + str(row_2["Description (EN)"].values[0]
                             ) + '<br> Estimated time of production: ' + str(row_2["BeginDate"].values[0]
@@ -129,16 +148,18 @@ def images_in_clusters(cluster_df, data, data_dir='../data/', map_file='map2pos_
                             ) + '<br> Current location: ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
                             ) + '<br> Annotated on: ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ', in set: ' + str(row_2["set"].values[0]
                             ) + '</b>' 
-                else:
+                elif row_2.shape[0] > 0:
                     info_2 = str(row_2["Author"].values[0]) + '<br> ' + str(row_2["Description"].values[0]#) + ' ' + str(row_2["Description (EN)"].values[0]
                             ) + '<br> Estimated time of production: ' + str(row_2["BeginDate"].values[0]
                             ) + '<br> Current location: ' + str(row_2["Country"].values[0]) + ' ' + str(row_2["City"].values[0]
                             ) + '<br> Annotated on: ' + str(row_2["annotated"].fillna('').astype(str).values[0]).split('_')[0].split(' ')[0] + ', in set: ' + str(row_2["set"].values[0]
                             )
+                else:
+                    info_2 = ''
                 uid = row[1]['uid']
                 pos = row[1]['pos']    
                 
-                if 'ImageURL' in data.columns:
+                if row_2.shape[0] > 0 and 'ImageURL' in data.columns:
                     url = row_2['ImageURL'].values[0]
                     if 'html' in url: 
                             
@@ -165,6 +186,11 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
                              embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy', dist=0.13,
                              min_n=2, type_clustering='dbscan', dist2=0.12):
     
+    """_summary_
+
+    Returns:
+        _type_: _description_
+    """    
     data = pd.read_csv(data_dir + data_file)
     data = data.groupby(['Description', 'AuthorOriginal']).first().reset_index()
     embeds = np.load(data_dir + embed_file, allow_pickle=True) 
@@ -317,6 +343,15 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
 
 
 def get_2d_pos(data_dir='../data/', embed_file='resnext-101_epoch_410-05-2022_10%3A11%3A05.npy'):
+    """_summary_
+
+    Args:
+        data_dir (str, optional): _description_. Defaults to '../data/'.
+        embed_file (str, optional): _description_. Defaults to 'resnext-101_epoch_410-05-2022_10%3A11%3A05.npy'.
+
+    Returns:
+        _type_: _description_
+    """    
     embeds = np.load(data_dir + embed_file, allow_pickle=True) 
     embeddings_new = TSNE(
             n_components=2
@@ -329,6 +364,15 @@ def get_2d_pos(data_dir='../data/', embed_file='resnext-101_epoch_410-05-2022_10
 
 
 def store_wrong_positive_cluster(info_cluster, cluster_num, cluster_file, data_dir='/scratch/students/schaerf/annotation/', wrong=True):
+    """_summary_
+
+    Args:
+        info_cluster (_type_): _description_
+        cluster_num (_type_): _description_
+        cluster_file (_type_): _description_
+        data_dir (str, optional): _description_. Defaults to '/scratch/students/schaerf/annotation/'.
+        wrong (bool, optional): _description_. Defaults to True.
+    """    
     morpho = pd.read_csv(data_dir + 'morphograph_clusters_new.csv')
 
     now = datetime.now()
@@ -360,6 +404,17 @@ def store_wrong_positive_cluster(info_cluster, cluster_num, cluster_file, data_d
 
 
 def store_morph_cluster(imges_uids_sim, info_cluster, cluster_num, cluster_file, data_dir='/scratch/students/schaerf/annotation/', type_ann=['POSITIVE', 'NEGATIVE'], negatives=False):
+    """_summary_
+
+    Args:
+        imges_uids_sim (_type_): _description_
+        info_cluster (_type_): _description_
+        cluster_num (_type_): _description_
+        cluster_file (_type_): _description_
+        data_dir (str, optional): _description_. Defaults to '/scratch/students/schaerf/annotation/'.
+        type_ann (list, optional): _description_. Defaults to ['POSITIVE', 'NEGATIVE'].
+        negatives (bool, optional): _description_. Defaults to False.
+    """    
     morpho = pd.read_csv(data_dir + 'morphograph_clusters_new.csv')
     now = datetime.now()
     now = now.strftime("%d-%m-%Y_%H:%M:%S")
@@ -389,6 +444,17 @@ def store_morph_cluster(imges_uids_sim, info_cluster, cluster_num, cluster_file,
 
 
 def make_clusters_rerank(data_dir='../data/', uid2path_file = 'uid2path.pkl', final_file='list_iconography.pkl', embed_file='similarities_madonnas_2600.npy'):
+    """_summary_
+
+    Args:
+        data_dir (str, optional): _description_. Defaults to '../data/'.
+        uid2path_file (str, optional): _description_. Defaults to 'uid2path.pkl'.
+        final_file (str, optional): _description_. Defaults to 'list_iconography.pkl'.
+        embed_file (str, optional): _description_. Defaults to 'similarities_madonnas_2600.npy'.
+
+    Returns:
+        _type_: _description_
+    """    
     with open(data_dir + uid2path_file, 'rb') as outfile:
         uid2path = pickle.load(outfile)
     with open(data_dir + final_file, 'rb') as infile:
@@ -408,6 +474,14 @@ def make_clusters_rerank(data_dir='../data/', uid2path_file = 'uid2path.pkl', fi
 
 
 def make_links(data_hierarchical):
+    """_summary_
+
+    Args:
+        data_hierarchical (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
     cluster_lists = data_hierarchical.groupby('cluster_desc')['cluster'].apply(lambda x: list(x))
     pairs_to_match = []
     for list_ in cluster_lists:
@@ -419,3 +493,31 @@ def make_links(data_hierarchical):
     return list(set(['-'.join(pair) for pair in pairs_to_match]))
 
 
+def catch(x, uid2path):
+    """_summary_
+
+    Args:
+        x (_type_): _description_
+        uid2path (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
+    try:
+        return uid2path[x]
+    except:
+        return [0,0]
+
+def convert_to_json(data_agg):
+    """_summary_
+
+    Args:
+        data_agg (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """        
+    new = ''
+    for cluster in data_agg.keys():
+        new  += '!!' + str(cluster) + '%%' + '%%'.join(['$$'.join([str(c) for c in cli]) for cli in data_agg[cluster]])
+    return new

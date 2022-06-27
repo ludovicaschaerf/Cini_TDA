@@ -1,22 +1,24 @@
-{% extends "base.html" %} {% block title %}Web Annotation{%endblock%} {% block body %}
-<header class="masthead text-center">
-    <div class="masthead-content">
-        <div class="container">
-            <h1 class="masthead-heading mb-0">Image retrieval and cluster annotation</h1>
-            <!-- <h2 class="masthead-subheading mb-0"></h2> -->
-            <a href="/morphograph" class="btn btn-light btn-xl rounded-pill mt-5">Original morphograph</a>
-            <br>
-            <a href="/clusters_rerank" class="btn btn-light btn-xl rounded-pill mt-5">Show reranked clusters</a>
-            <br>
-            <a href="/clusters_embeds" class="btn btn-light btn-xl rounded-pill mt-5">Show clusters from embeddings</a>
-            <br>
-            <a href="/clusters_hierarchical" class="btn btn-light btn-xl rounded-pill mt-5">Show clusters from embeddings (H)</a>
-            <br>
-            <a href="/visual_embeds" class="btn btn-light btn-xl rounded-pill mt-5">Show visual clusters</a>
-            <br>
-            <a href="/annotate" class="btn btn-light btn-xl rounded-pill mt-5">Annotate</a>
+{% extends "base.html" %} {% block title %}Home - Pattern groups{%endblock%} {% block body %}
+<header class="text-center">
+    <div class="row justify-content-center">
+        <div class="col-8">
+            <div class="mt-5">
+                <div class="container">
+                    <h3 class="arial">Semi-supervised Clustering of <br> Visual Signatures of Artworks - Interface</h3>
+                    <h4 class="arial">Created by Ludovica Schaerf (Master Thesis)</h4>
+                    <p class="mt-3">Copy paste abstract. <br> To view the morphograph as cluster you can click
+                        <a href="/morphograph" class="btn btn-light">here</a>.<br> To view the clusters based on the re-ranked embeddings, click
+                        <a href="/clusters_rerank" class="btn btn-light">here</a>. <br> To show the clusters from the original embeddings, click
+                        <a href="/clusters_embeds" class="btn btn-light">here</a>. <br> To view the clusters in 2D coordinates, click
+                        <!-- <a href="/clusters_hierarchical" class="btn btn-light">Show clusters from embeddings (H)</a> -->
+                        <a href="/visual_clusters" class="btn btn-light">here</a>. <br>
+                        <!-- <a href="/annotate" class="btn btn-light btn-xl rounded-pill mt-5">Annotate</a> -->
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
+
 </header>
 
 {% endblock %}

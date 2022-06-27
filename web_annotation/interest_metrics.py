@@ -13,31 +13,18 @@ from metrics_clusters import *
 sys.path.insert(0, "../model/")
 from utils import *
 
-
-def catch_transl(func, zero=False, handle=lambda e: e, *args, **kwargs, ):
-    '''Prevents list comprehensions from going into an error when an exception occurs'''
-    try:
-        return func(*args, **kwargs)
-    except Exception as e:
-        print(e)
-        if zero:
-            return 0
-        else:
-            return e
-
-def catch_transl_2(uid, word, uid2endesc):
-    '''Prevents list comprehensions from going into an error when an exception occurs'''
-    try:
-        if 'Max retries' in uid2endesc[uid]:
-            return catch_transl(lambda : GoogleTranslator(source='auto', target='en').translate(word))
-        else:
-            return uid2endesc[uid]
-    except Exception as e:
-        return catch_transl(lambda : GoogleTranslator(source='auto', target='en').translate(word))
-
-
-
 def cluster_text(text, range_try=(100,102), hyperparam=False, num_clusters=100):
+    """_summary_
+
+    Args:
+        text (_type_): _description_
+        range_try (tuple, optional): _description_. Defaults to (100,102).
+        hyperparam (bool, optional): _description_. Defaults to False.
+        num_clusters (int, optional): _description_. Defaults to 100.
+
+    Returns:
+        _type_: _description_
+    """    
     vectorizer = TfidfVectorizer(stop_words={'english'})
     X = vectorizer.fit_transform(text)
 
@@ -72,9 +59,19 @@ def cluster_text(text, range_try=(100,102), hyperparam=False, num_clusters=100):
 
 
 def add_interest_scores(data_dir='../data/', translate=False, new=False, precomputed=True):
-    positives = update_morph(data_dir, '', new=new) 
-    print(positives.columns)
+    """_summary_
 
+    Args:
+        data_dir (str, optional): _description_. Defaults to '../data/'.
+        translate (bool, optional): _description_. Defaults to False.
+        new (bool, optional): _description_. Defaults to False.
+        precomputed (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        _type_: _description_
+    """    
+    positives = update_morph(data_dir, '', new=new) 
+    
     if precomputed:
         pos = pd.read_csv(data_dir + 'interest_scores.csv')
         positives = positives.merge(pos, left_on=['uid', 'cluster'], right_on=['uid', 'cluster'])
@@ -142,3 +139,34 @@ def add_interest_scores(data_dir='../data/', translate=False, new=False, precomp
     print(positives.columns)
 
     return positives
+
+
+def catch_transl(func, zero=False, handle=lambda e: e, *args, **kwargs, ):
+    """Prevents list comprehensions from going into an error when an exception occurs
+
+    Returns:
+        _type_: _description_
+    """    
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        print(e)
+        if zero:
+            return 0
+        else:
+            return e
+
+def catch_transl_2(uid, word, uid2endesc):
+    """Prevents list comprehensions from going into an error when an exception occurs
+
+    Returns:
+        _type_: _description_
+    """    
+    try:
+        if 'Max retries' in uid2endesc[uid]:
+            return catch_transl(lambda : GoogleTranslator(source='auto', target='en').translate(word))
+        else:
+            return uid2endesc[uid]
+    except Exception as e:
+        return catch_transl(lambda : GoogleTranslator(source='auto', target='en').translate(word))
+
