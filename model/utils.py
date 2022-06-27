@@ -402,14 +402,7 @@ def make_training_set_orig(embeddings, train_test, data, data_dir, uid2path, epo
 #########################################################
 
 def get_drawer(row_2, path, info=False):
-    if row_2 == path:
-        url = path
-        if 'html' in url: 
-                            
-            image = url.split('html')[0]+'art'+url.split('html')[1] +'jpg'
-        else:
-            image = url
-    elif 'ImageURL' in row_2.columns:
+    if type(row_2) != str and 'ImageURL' in row_2.columns:
         url = row_2['ImageURL'].values[0]
         if 'html' in url: 
                             
@@ -419,6 +412,13 @@ def get_drawer(row_2, path, info=False):
     elif 'WGA' in path:
         drawer = '/'.join(path.split('/')[4:]).split('.')[0] # http://www.wga.hu/html/a/aachen/allegory.html
         image = f'http://www.wga.hu/art/{drawer}.jpg'
+    elif type(row_2) == str and row_2 == path:
+        url = path
+        if 'html' in url: 
+                            
+            image = url.split('html')[0]+'art'+url.split('html')[1] +'jpg'
+        else:
+            image = url
     else:
         try:
             drawer = path.split('/')[-1].split('_')[0]
@@ -579,8 +579,7 @@ def show_clusters(cluster_num, morpho, uid2path, fig_dir, title):
     new_morph = morpho_.groupby('uid').first().reset_index()
     cluster = new_morph[new_morph['cluster'] == cluster_num]
 
-    f, axarr = plt.subplots(cluster.shape[0] // 4 + 1,4, figsize=(30,(cluster.shape[0] // 4 + 1) * 8))
-    plt.suptitle(title)
+    f, axarr = plt.subplots(cluster.shape[0] // 4 + 1,4, figsize=(16,(cluster.shape[0] // 4 + 1) * 6))
     axarr = axarr.flatten()
     
     for i,row in cluster.reset_index().iterrows():
@@ -589,10 +588,12 @@ def show_clusters(cluster_num, morpho, uid2path, fig_dir, title):
             info = str(row["Author"]) + '\n ' + str(row["Description"]) + '\n New Addition!'
         else:
             info = str(row["Author"]) + '\n ' + str(row["Description"]) + '\n ' + str(row["set"])
-        axarr[i].set_title(info)
+        axarr[i].set_title(info, wrap=True)
         image = requests.get(get_drawer(pd.DataFrame(row), catch(row['uid'], uid2path)))
         
         try:
+            axarr[i].axis(False)
+            axarr[i].set_aspect("equal")
             axarr[i].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
         except Exception as e:
             print(get_drawer(pd.DataFrame(row), catch(row['uid'], uid2path)))
@@ -602,6 +603,8 @@ def show_clusters(cluster_num, morpho, uid2path, fig_dir, title):
         axarr[i].set_visible(False)
     
     if cluster.shape[0] > 0:
+        plt.subplots_adjust(wspace=0, hspace=0)
+        plt.suptitle(title)
         plt.savefig(fig_dir + str(cluster_num) + '_' + row["Author"].split()[0] + '_' + row["Description"].split()[0] + '.jpg')
         plt.show()
     

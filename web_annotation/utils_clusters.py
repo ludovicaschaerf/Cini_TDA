@@ -211,7 +211,8 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
             db = DBSCAN(eps=dist, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
             classes = db.labels_
             labels = embeds[:,0]
-            
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+    
     elif type_clustering=='gaussian_mixture':
         embeddings_new = PCA(n_components=20).fit_transform(
             np.vstack(embeds[:, 1])
@@ -220,7 +221,8 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         gm = BayesianGaussianMixture(n_components=dist).fit(embeddings_new)
         classes = gm.predict(embeddings_new)
         labels = embeds[:,0]
-        
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+    
     elif type_clustering=='kmeans_dim':
         embeddings_new = PCA(n_components=20).fit_transform(
             np.vstack(embeds[:, 1])
@@ -229,7 +231,8 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[:,1]))
         classes = km.labels_
         labels = embeds[:,0]
-
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+    
     elif type_clustering == 'optics':
         # embeddings_new = PCA(n_components=500).fit_transform(
         #     np.vstack(embeds[:, 1])
@@ -240,7 +243,8 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         db = OPTICS(max_eps=dist, min_samples=min_n, metric='cosine').fit(embeds[:, 1]) #0.51 best so far
         classes = db.labels_
         labels = embeds[:,0]
-        
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+    
         
     elif type_clustering == 'mix':
         print('remove outliers with dbscan and cluster with kmeans')
@@ -263,7 +267,25 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
         #km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[~np.in1d(embeds[:, 0], uid2remove),1]))
         classes = km.labels_
         labels = embeds[~np.in1d(embeds[:, 0], uid2remove), 0]
-
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+    
+    elif type_clustering == 'dbscan_kmeans':
+        db = DBSCAN(eps=dist2, min_samples=min_n, metric='cosine').fit(np.vstack(embeds[:,1])) #0.51 best so far
+        classes = db.labels_
+        labels = embeds[:,0]
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+        print(clusters['cluster'].value_counts(), clusters['cluster'].nunique())
+        unique = clusters['cluster'].nunique()
+        max_cluster = clusters[clusters['cluster'] != -1].groupby(['cluster']).size().idxmax()
+        print(max_cluster)
+        uid2keep = list(clusters[clusters['cluster'] == max_cluster]['uid'])
+        print(len(uid2keep))
+        km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[np.in1d(embeds[:, 0], uid2keep),1]))
+        classes_new = km.labels_
+        print(classes_new)
+        #labels_new = embeds[np.in1d(embeds[:, 0], uid2keep), 0]
+        clusters.loc[clusters['cluster'] == max_cluster, 'cluster'] = classes_new + unique
+        
     elif type_clustering == 'spectral_clustering':
         clustering = SpectralClustering(n_clusters=dist,
                                         assign_labels='discretize',
@@ -271,13 +293,15 @@ def make_clusters_embeddings(data_dir='../data/', data_file='data_wga_cini_45000
                                         ).fit(np.vstack(embeds[:,1]))
         classes = clustering.labels_
         labels = embeds[:,0]
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+    
     
     else:
         km = KMeans(n_clusters=dist, max_iter=100, n_init=10).fit(np.vstack(embeds[:,1]))
         classes = km.labels_
         labels = embeds[:,0]
         
-    clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
+        clusters = pd.DataFrame({'uid':labels, 'cluster':classes})
     print(clusters.shape)
     print('stats')
     print(clusters['cluster'].value_counts(), clusters['cluster'].nunique())
