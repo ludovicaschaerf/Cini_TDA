@@ -24,19 +24,19 @@ signatures_resnet = np.stack(data[:, 1])[:N_LIMIT]
 print('\n> (1/6) Data loaded properly \n')
 
 mapper_graph = MapperGraph(signatures_resnet, N_LIMIT, projection=sklearn.manifold.TSNE(n_components= 2),\
-                           cover = km.Cover(n_cubes=30, perc_overlap=0.35), 
-                           clustering = sklearn.cluster.OPTICS(max_eps=0.13, min_samples=1)
+                           cover = km.Cover(n_cubes=3, perc_overlap=0.35), 
+                           clustering = sklearn.cluster.OPTICS(max_eps=0.5, min_samples=1)
                            ) # 280, 0.1, 1.5 subset 30
 print('\n> (2/6) Mapper graph complete \n')
 
-with open(data_dir + 'mapper/' + f'MapperClass_{PROJECTION}_Date-{DATE}_NLim-{N_LIMIT}', 'wb') as f:
+with open(data_dir + f'MapperClass_{PROJECTION}_Date-{DATE}_NLim-{N_LIMIT}', 'wb') as f:
     pickle.dump(mapper_graph, f)
 print('\n> (3/6) Saved mapper graph \n')
 
 mapper_graph.loss_value_2()
 print('\n> (4/6) Loss value computed \n')
 
-with open(data_dir + 'mapper/' + f'MapperClass_{PROJECTION}_Date-{DATE}_NLim-{N_LIMIT}', 'wb') as f:
+with open(data_dir + f'MapperClass_{PROJECTION}_Date-{DATE}_NLim-{N_LIMIT}', 'wb') as f:
     pickle.dump(mapper_graph, f)
 print('\n> (5/6) Saved mapper graph \n')
 

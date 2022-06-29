@@ -22,6 +22,8 @@ from PIL import Image
 
 from spatial_reranking import rerank_spatial
 
+from textwrap import wrap
+
 
 #########################################################
 ##### Embeddings
@@ -169,7 +171,6 @@ def get_train_test_split(metadata, morphograph):
     ]
 
     return positives
-
 
 
 def remove_duplicates(metadata, morphograph):
@@ -432,7 +433,6 @@ def get_drawer(row_2, path, info=False):
     
     return image
                 
-
 def show_similars(row, embeddings, train_test, tree, reverse_map, uid2path, data):
     
     if row["set"].values[0] in ['train', 'val', 'test']:
@@ -541,7 +541,7 @@ def show_results(row, embeddings, train_test, data, uid2path, fig_dir):
 
     print('positions of matches', find_pos_matches(sim, list_theo, n=400))
 
-    f, axarr = plt.subplots(3,4, figsize=(30,20))
+    f, axarr = plt.subplots(3,4, figsize=(15,15))
     plt.suptitle('Image retrieval with embeddings of ' + row["Author"].values[0] + '\n ' + row["Description"].values[0] + 
                 '\nRank: ' + ', '.join([str(x) for x in find_pos_matches(sim, list_theo, n=400)]))
     axarr = axarr.flatten()
@@ -556,19 +556,28 @@ def show_results(row, embeddings, train_test, data, uid2path, fig_dir):
         if sim[i] in list_theo:
             correct = 'CORRECT'
         else:
-            correct = 'WRONG'
+            correct = 'NOT IN MORPHO'
 
         row_2 = data[data['uid'] == sim[i]]
         info_2 = str(row_2["Author"].values[0]) + '\n ' + str(row_2["Description"].values[0])
-    
-        axarr[i+1].set_title(info_2 + '\n' + 'Similarity: ' + str(np.round((1 - similarities[i]), 2)) + ', Grountruth: ' + correct)
+        info = info_2 + '\n' + 'Similarity: ' + str(np.round((1 - similarities[i]), 2)) + ', Grountruth: ' + correct 
+        axarr[i+1].set_title("\n".join(wrap(info, 25)))
         image = requests.get(get_drawer(row_2, catch(sim[i], uid2path)))
         
         try:
-            axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
+            axarr[i+1].axis(False)
+            axarr[i+1].set_aspect("equal")
+            
+            axarr[i+1].imshow(Image.open(BytesIO(image.content))) #replica_dir +
+
         except: 
-            continue
-    plt.savefig(fig_dir + row["Author"].values[0] + '_' + row["Description"].values[0] + '.jpg')
+            axarr[i+1].axis(False)
+            axarr[i+1].set_aspect("equal")
+            axarr[i+1].set_visible(False)
+            
+    plt.subplots_adjust(wspace=0, hspace=0)
+    plt.tight_layout()
+    plt.savefig(fig_dir + 'retrieval_' + row["Author"].values[0].split()[0] + '_' + row["Description"].values[0].split()[0] + '.jpg')
     plt.show()
     
     return sim[:20]
@@ -579,7 +588,7 @@ def show_clusters(cluster_num, morpho, uid2path, fig_dir, title):
     new_morph = morpho_.groupby('uid').first().reset_index()
     cluster = new_morph[new_morph['cluster'] == cluster_num]
 
-    f, axarr = plt.subplots(cluster.shape[0] // 4 + 1,4, figsize=(16,(cluster.shape[0] // 4 + 1) * 6))
+    f, axarr = plt.subplots(cluster.shape[0] // 4 + 1,4, figsize=(12,(cluster.shape[0] // 4 + 1) * 5))
     axarr = axarr.flatten()
     
     for i,row in cluster.reset_index().iterrows():
@@ -588,7 +597,7 @@ def show_clusters(cluster_num, morpho, uid2path, fig_dir, title):
             info = str(row["Author"]) + '\n ' + str(row["Description"]) + '\n New Addition!'
         else:
             info = str(row["Author"]) + '\n ' + str(row["Description"]) + '\n ' + str(row["set"])
-        axarr[i].set_title(info, wrap=True)
+        axarr[i].set_title("\n".join(wrap(info, 30)), wrap=True)
         image = requests.get(get_drawer(pd.DataFrame(row), catch(row['uid'], uid2path)))
         
         try:
@@ -596,15 +605,20 @@ def show_clusters(cluster_num, morpho, uid2path, fig_dir, title):
             axarr[i].set_aspect("equal")
             axarr[i].imshow(Image.open(BytesIO(image.content))) #replica_dir + 
         except Exception as e:
+            axarr[i].axis(False)
+            axarr[i].set_aspect("equal")
+            axarr[i].set_visible(False)
             print(get_drawer(pd.DataFrame(row), catch(row['uid'], uid2path)))
             continue
 
     for i in range(cluster.shape[0], (cluster.shape[0] // 4 + 1) * 4):
+        axarr[i].axis(False)
+        axarr[i].set_aspect("equal")
         axarr[i].set_visible(False)
     
     if cluster.shape[0] > 0:
         plt.subplots_adjust(wspace=0, hspace=0)
-        plt.suptitle(title)
+        plt.tight_layout()
         plt.savefig(fig_dir + str(cluster_num) + '_' + row["Author"].split()[0] + '_' + row["Description"].split()[0] + '.jpg')
         plt.show()
     

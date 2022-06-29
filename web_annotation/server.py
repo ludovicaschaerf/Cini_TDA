@@ -36,14 +36,19 @@ data_rerank = pd.read_csv(args.data_dir + 'original/dedup_data.csv').drop(column
 
 # morphograph
 if args.scores == 'yes':
-    morpho = add_interest_scores(args.data_dir, translate=False, new=True, precomputed=True)
+    morpho = add_interest_scores(args.data_dir, translate=False, new=True, precomputed=False)
 else:
     print('using existing morphograph')
     morpho = update_morph(args.data_dir, '', new=True)
     
 morpho_ = morpho.fillna('')
-new_morph = morpho_#.groupby('uid').first().reset_index()
-    
+print(morpho_.shape)
+print('num of unique images', len(list(set(list(morpho_['img1']) + list(morpho_['img2']))))) 
+
+print('uids that have img2', morpho_[morpho_['uid'].isin(morpho_[morpho_['uid'].isin(list(morpho_['img1']))]['img2'])].shape)
+new_morph = morpho_.groupby('uid').first().reset_index()
+print('num of retained images', new_morph.shape[0]) 
+print('uids that have img2 unique', new_morph[new_morph['uid'].isin(new_morph[new_morph['uid'].isin(list(new_morph['img1']))]['img2'])].shape)
 # eps becomes number of clusters
 if args.type in ['mix','kmeans','spectral_clustering']:
     args.eps = int(args.eps)
@@ -94,7 +99,7 @@ def morpho_show():
     print(new_morph['cluster'].nunique())
     clu2size = {i: cl for i,cl in zip(new_morph.groupby('cluster').size().index, new_morph.groupby('cluster').size().values)}
     new_morph['cluster_size'] = new_morph['cluster'].apply(lambda x: clu2size[x])
-    new_morph_ = new_morph[new_morph['cluster_size']>1]
+    new_morph_ = new_morph[new_morph['cluster_size'] > 1]
     print(new_morph_['cluster'].nunique())
 
     INFO = images_in_clusters(new_morph_, morpho_, map_file=map_file)
@@ -118,7 +123,7 @@ def morpho_show():
 def clusters():
     
     INFO = images_in_clusters(cluster_df_rerank, data_rerank, map_file=map_file)
-    annotate_store(cluster_df, data, map_file, cluster_file, args.data_dir)
+    annotate_store(cluster_df, data_norm, map_file, cluster_file, args.data_dir)
 
     return render_template(
         "clusters.html",
@@ -127,20 +132,21 @@ def clusters():
     )
 
 
-@app.route("/visual_clusters", methods=["GET", "POST"])
-def visual_clusters():
-    
-    INFO = images_in_clusters(cluster_df, data, map_file=map_file)
-    annotate_store(cluster_df, data, map_file, cluster_file, args.data_dir)
-
-    return render_template(
-        "visual_clusters.html",
-        data=convert_to_json(INFO),
-        cold_start=request.method == "GET",
-    )
-
 
 ## deprecated 
+
+# @app.route("/visual_clusters", methods=["GET", "POST"])
+# def visual_clusters():
+    
+#     INFO = images_in_clusters(cluster_df, data_norm, map_file=map_file)
+#     annotate_store(cluster_df, data_norm, map_file, cluster_file, args.data_dir)
+
+#     return render_template(
+#         "visual_clusters.html",
+#         data=convert_to_json(INFO),
+#         cold_start=request.method == "GET",
+#     )
+
 
 # parser.add_argument('--n_subset', dest='n_subset',
 #                     type=int, help='', default=10)

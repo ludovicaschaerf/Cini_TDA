@@ -74,7 +74,7 @@ def add_interest_scores(data_dir='../data/', translate=False, new=False, precomp
     
     if precomputed:
         pos = pd.read_csv(data_dir + 'interest_scores.csv')
-        positives = positives.merge(pos, left_on=['uid', 'cluster'], right_on=['uid', 'cluster'])
+        positives = positives.merge(pos, left_on=['uid', 'cluster'], right_on=['uid', 'cluster'], how='left')
         return positives
     # scores for iconography
     if translate:

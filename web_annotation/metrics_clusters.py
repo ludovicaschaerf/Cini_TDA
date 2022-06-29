@@ -53,7 +53,7 @@ def update_morph(data_dir, morph_file, new=False):
     morpho_graph_complete = morpho_graph_complete.groupby('uid').first().reset_index()
     print('after deduplicating', morpho_graph_complete[morpho_graph_complete['type'] == 'POSITIVE'].shape)
     positives = get_new_split(metadata, positives, morpho_graph_complete)
-    
+    print(positives.shape)
     #positives = positives.groupby(['uid_connection']).first().reset_index()
     positives['old_cluster'] = positives['cluster']
     positives['cluster'] = positives['new_cluster']
@@ -94,7 +94,11 @@ def get_new_split(metadata, positives, morpho_update):
             metadata.merge(morpho_update, left_on="uid", right_on="img2", how="inner"),
         ],
         axis=0,
-    ).groupby('uid_connection').first().reset_index()
+    )#.groupby(['uid', 'uid_connection']).first().reset_index()
+    print(positive[positive['uid'] == positive['img1']].shape, positive[positive['uid'] == positive['img2']].shape,)
+    positive = positive.groupby(['uid', 'uid_connection']).first().reset_index()
+    print(positive[positive['uid'] == positive['img1']].shape, positive[positive['uid'] == positive['img2']].shape,)
+    
 
     # adding set specification to df
     mapper = {it: number for number, nodes in enumerate(components) for it in nodes}

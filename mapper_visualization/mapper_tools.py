@@ -148,5 +148,5 @@ class MapperGraph:
 
     def visualize_graph(self): # todo : fix this 
         html = self.mapper.visualize(self.graph,path_html=data_dir + "keplermapper.html",
-                 title="replica10000(n_samples=10000)", 
+                 title="replica(n_samples=8959)", 
                  custom_tooltips = np.array([f"<img src= 'https://dhlabsrv4.epfl.ch/iiif_replica/cini%2F{drawer}%2F{drawer}_{image}.jpg/full/300,/0/default.jpg'>" for (drawer, image) in pd.merge(pd.Series(self.uids, name = 'uid').to_frame(), self.df, on = 'uid', how = 'left')[['Drawer', 'ImageNumber']].values]))
