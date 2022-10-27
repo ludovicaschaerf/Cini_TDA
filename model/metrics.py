@@ -1,6 +1,5 @@
 # from file found online for mean average precision
 # recall at k implemented by me
-
 import numpy as np
 
 
@@ -24,6 +23,7 @@ def mean_average_precision(rs):
         Mean average precision
     """
     return np.mean([average_precision(r) for r in rs])
+
 
 def average_precision(r):
     """Score is average precision (area under PR curve)
@@ -57,6 +57,7 @@ def average_precision(r):
     if not out:
         return 0.
     return np.mean(out)
+
 
 def precision_at_k(r, k):
     """Score is precision @ k
@@ -94,7 +95,8 @@ def precision_at_k(r, k):
 
 
 def recall_at_k(r, k):
-    """Score is precision @ k
+    """Score recall @ k
+    Retrieved instances in the first k results.
 
     """
     assert k >= 1

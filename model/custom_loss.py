@@ -1,26 +1,30 @@
+# imports
 from torch.nn import PairwiseDistance
 from torch.nn import Module
 from torch.nn import functional as F
 from torch.nn import _reduction as _Reduction
 import torch
-
 from torch import Tensor
-from typing import Callable, Optional
 
 from torch.overrides import (
     has_torch_function_variadic,
     handle_torch_function)
 
+from typing import Callable, Optional
+
 
 class _Loss(Module):
+    """ _Loss module from pytorch"""
     reduction: str
 
     def __init__(self, size_average=None, reduce=None, reduction: str = 'mean') -> None:
         super(_Loss, self).__init__()
         if size_average is not None or reduce is not None:
-            self.reduction: str = _Reduction.legacy_get_string(size_average, reduce)
+            self.reduction: str = _Reduction.legacy_get_string(
+                size_average, reduce)
         else:
             self.reduction = reduction
+
 
 def triplet_margin_with_distance_loss_custom(
     anchor: Tensor,
@@ -67,8 +71,9 @@ def triplet_margin_with_distance_loss_custom(
         swap_dist = distance_function(positive, negative)
         negative_dist = torch.min(negative_dist, swap_dist)
 
-    if intra:
-        output = torch.clamp(positive_dist - negative_dist + margin + torch.clamp(positive_dist - beta, min=0.0), min=0.0)
+    if intra:  # adding the intra cluster distance constraint
+        output = torch.clamp(positive_dist - negative_dist + margin +
+                             torch.clamp(positive_dist - beta, min=0.0), min=0.0)
     else:
         output = torch.clamp(positive_dist - negative_dist + margin, min=0.0)
 
@@ -79,6 +84,7 @@ def triplet_margin_with_distance_loss_custom(
         return output.sum()
     else:
         return output
+
 
 class TripletMarginWithDistanceLossCustom(_Loss):
     r"""
@@ -119,16 +125,17 @@ class TripletMarginWithDistanceLossCustom(_Loss):
 
     def __init__(self, *, distance_function: Optional[Callable[[Tensor, Tensor], Tensor]] = None,
                  margin: float = 1.0, beta: float = 0.5, swap: bool = False, reduction: str = 'mean', intra: bool = False):
-        super(TripletMarginWithDistanceLossCustom, self).__init__(size_average=None, reduce=None, reduction=reduction)
+        super(TripletMarginWithDistanceLossCustom, self).__init__(
+            size_average=None, reduce=None, reduction=reduction)
         self.distance_function: Optional[Callable[[Tensor, Tensor], Tensor]] = \
             distance_function if distance_function is not None else PairwiseDistance()
         self.margin = margin
         self.swap = swap
         self.beta = beta
-        self.intra = intra
+        self.intra = intra  # intra cluster parameter
 
     def forward(self, anchor: Tensor, positive: Tensor, negative: Tensor) -> Tensor:
         return triplet_margin_with_distance_loss_custom(anchor, positive, negative,
-                                                   distance_function=self.distance_function,
-                                                   margin=self.margin, swap=self.swap, beta=self.beta, 
-                                                   reduction=self.reduction, intra=self.intra)
+                                                        distance_function=self.distance_function,
+                                                        margin=self.margin, swap=self.swap, beta=self.beta,
+                                                        reduction=self.reduction, intra=self.intra)
